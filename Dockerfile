@@ -6,6 +6,7 @@ WORKDIR /source
 COPY VypusknykPlus.sln .
 COPY src/VypusknykPlus.Api/VypusknykPlus.Api.csproj                      src/VypusknykPlus.Api/
 COPY src/VypusknykPlus.Application/VypusknykPlus.Application.csproj      src/VypusknykPlus.Application/
+COPY src/VypusknykPlus.Tests/VypusknykPlus.Tests.csproj                  src/VypusknykPlus.Tests/
 
 RUN dotnet restore
 
