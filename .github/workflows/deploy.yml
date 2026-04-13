@@ -6,6 +6,7 @@ on:
 
 env:
   IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/vypusknyk-plus
+  REPO: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}
 
 jobs:
   # ── 1. Build & Test ──────────────────────────────────────────────────────────
@@ -31,8 +32,6 @@ jobs:
     name: Build & Push image
     runs-on: ubuntu-latest
     needs: test
-    outputs:
-      tag: ${{ steps.tag.outputs.value }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,26 +58,13 @@ jobs:
           tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
 
   # ── 3. Deploy to server ───────────────────────────────────────────────────────
-  # Server setup (one-time, manual):
-  #   mkdir -p ~/vypusknyk-plus/prod ~/vypusknyk-plus/staging
-  #   # Copy .env files with secrets to each directory (see .env.example)
-  #   # prod uses docker-compose.yml, staging uses docker-compose.staging.yml
   deploy:
     name: Deploy (${{ github.ref_name == 'main' && 'production' || 'staging' }})
     runs-on: ubuntu-latest
     needs: docker
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
     steps:
-      - name: Copy compose file to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}       # YOUR_SERVER_IP
-          username: ${{ secrets.SERVER_USER }}   # e.g. ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: ${{ github.ref_name == 'main' && 'docker-compose.yml' || 'docker-compose.staging.yml' }}
-          target: ~/vypusknyk-plus/${{ github.ref_name == 'main' && 'prod' || 'staging' }}/
-
-      - name: Pull image & restart
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -86,11 +72,22 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            cd ~/vypusknyk-plus/${{ github.ref_name == 'main' && 'prod' || 'staging' }}
 
-            COMPOSE_FILE=${{ github.ref_name == 'main' && 'docker-compose.yml' || 'docker-compose.staging.yml' }}
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              DIR=~/vypusknyk-plus/prod
+              COMPOSE_FILE=docker-compose.yml
+            else
+              DIR=~/vypusknyk-plus/staging
+              COMPOSE_FILE=docker-compose.staging.yml
+            fi
 
-            # Pull new image and restart only the api container (db & minio stay up)
+            mkdir -p $DIR
+            cd $DIR
+
+            # Pull latest compose file from GitHub
+            curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/${COMPOSE_FILE}" -o $COMPOSE_FILE
+
+            # Pull new image and restart only api (db & minio stay up)
             DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }} \
               docker compose -f $COMPOSE_FILE pull api
 
