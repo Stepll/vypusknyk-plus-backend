@@ -1,0 +1,33 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# Logs
+logs/
+*.log
+
+# IDE and OS
+.vs/
+.vscode/
+.idea/
+**/.DS_Store
+**/Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker files (not needed inside the image)
+docker-compose*.yml
+Dockerfile
+
+# Secrets / env files (never bake into image)
+.env
+.env.*
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.Production.json
+
+# Docs
+*.md

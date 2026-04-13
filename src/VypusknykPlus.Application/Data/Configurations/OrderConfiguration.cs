@@ -1,0 +1,42 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using VypusknykPlus.Application.Entities;
+
+namespace VypusknykPlus.Application.Data.Configurations;
+
+public class OrderConfiguration : IEntityTypeConfiguration<Order>
+{
+    public void Configure(EntityTypeBuilder<Order> builder)
+    {
+        builder.HasKey(o => o.Id);
+
+        builder.Property(o => o.OrderNumber).IsRequired().HasMaxLength(20);
+        builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(50);
+        builder.Property(o => o.Total).HasPrecision(10, 2);
+        builder.Property(o => o.Payment).HasConversion<string>().HasMaxLength(50);
+        builder.Property(o => o.Email).HasMaxLength(256);
+        builder.Property(o => o.Comment).HasMaxLength(1000);
+
+        builder.OwnsOne(o => o.Delivery, d =>
+        {
+            d.Property(x => x.Method).HasConversion<string>().HasMaxLength(50);
+            d.Property(x => x.City).HasMaxLength(200);
+            d.Property(x => x.Warehouse).HasMaxLength(200);
+            d.Property(x => x.PostalCode).HasMaxLength(10);
+        });
+
+        builder.OwnsOne(o => o.Recipient, r =>
+        {
+            r.Property(x => x.FullName).IsRequired().HasMaxLength(200);
+            r.Property(x => x.Phone).IsRequired().HasMaxLength(20);
+        });
+
+        builder.HasOne(o => o.User)
+            .WithMany(u => u.Orders)
+            .HasForeignKey(o => o.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(o => o.UserId);
+        builder.HasIndex(o => o.OrderNumber).IsUnique();
+    }
+}
