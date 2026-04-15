@@ -147,5 +147,16 @@ docker compose up --build
 - [x] **Production конфігурація** — всі секрети через env vars, startup validation, CORS з конфігу, bootstrap logger читає env vars
 - [x] **Product images (MinIO)** — `IImageService` + `ImageService`, bucket auto-init при старті, `POST /api/v1/products/{id}/image`, `Product.ImageKey`, `ProductResponse.ImageUrl`, міграція `AddProductImageKey`
 - [x] **Docker** — multi-stage `Dockerfile`, `docker-compose.yml` (api + db + minio), `.dockerignore`, `.env.example`, `IDesignTimeDbContextFactory`, health checks `/healthz`, auto-migrations при старті
-- [ ] **Тести** — unit та integration тести; ідеально писати паралельно з Фазою 2, але якщо одразу — то після неї поки логіка свіжа
-- [ ] **CI/CD** — pipeline для збірки та деплою; останній, потребує все попереднє
+- [x] **Тести** — xUnit unit тести для AuthService (8 тестів), EF InMemory + Moq, проект `VypusknykPlus.Tests`
+- [x] **CI/CD** — GitHub Actions: CI (build+test на кожен push), Deploy (push до main → Docker Hub → SSH на сервер Contabo)
+
+---
+
+#### Фаза 5 — Запуск продукту
+
+- [ ] **Підключити фронт до бека** — в `../Test_project` змінити `VITE_API_URL=http://75.119.152.4:8080`
+- [ ] **Задеплоїти фронт на Vercel** — реєстрація через GitHub, імпорт репо фронту, автодеплой
+- [ ] **Налаштувати email** — додати SMTP дані в `.env` на сервері (`~/vypusknyk-plus/prod/.env`)
+- [ ] **Домен** — купити домен і прив'язати до сервера (75.119.152.4)
+- [ ] **HTTPS** — SSL сертифікат через Let's Encrypt після домену
+- [ ] **Адмінка** — панель для управління замовленнями та продуктами
