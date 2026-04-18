@@ -36,6 +36,7 @@ public class AuthServiceTests : IDisposable
             _db,
             jwtSettings,
             new Mock<IEmailService>().Object,
+            new Mock<IOrderService>().Object,
             new Mock<ILogger<AuthService>>().Object
         );
     }
