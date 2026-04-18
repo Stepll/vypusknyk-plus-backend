@@ -72,7 +72,7 @@ public class ProductService : IProductService
         };
     }
 
-    public async Task<ProductResponse?> GetByIdAsync(int id)
+    public async Task<ProductResponse?> GetByIdAsync(long id)
     {
         var product = await _db.Products.FindAsync(id);
 
@@ -82,7 +82,7 @@ public class ProductService : IProductService
         return MapToResponse(product);
     }
 
-    public async Task<ProductResponse> UploadImageAsync(int productId, Stream imageStream, string contentType)
+    public async Task<ProductResponse> UploadImageAsync(long productId, Stream imageStream, string contentType)
     {
         var product = await _db.Products.FindAsync(productId)
             ?? throw new KeyNotFoundException($"Product {productId} not found");
@@ -100,7 +100,7 @@ public class ProductService : IProductService
         return MapToResponse(product);
     }
 
-    public async Task<ProductResponse> DeleteImageAsync(int productId)
+    public async Task<ProductResponse> DeleteImageAsync(long productId)
     {
         var product = await _db.Products.FindAsync(productId)
             ?? throw new KeyNotFoundException($"Product {productId} not found");

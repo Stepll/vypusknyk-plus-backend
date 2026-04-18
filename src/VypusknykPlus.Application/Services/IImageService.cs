@@ -5,7 +5,7 @@ public interface IImageService
     /// <summary>
     /// Upload an image stream for a product. Returns the stored object key (e.g. "products/42.jpg").
     /// </summary>
-    Task<string> UploadProductImageAsync(int productId, Stream imageStream, string contentType, CancellationToken ct = default);
+    Task<string> UploadProductImageAsync(long productId, Stream imageStream, string contentType, CancellationToken ct = default);
 
     /// <summary>
     /// Delete an object by its key. Silently no-ops if the object does not exist.

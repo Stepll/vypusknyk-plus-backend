@@ -6,7 +6,7 @@ namespace VypusknykPlus.Application.Services;
 public interface IProductService
 {
     Task<PagedResponse<ProductResponse>> GetAllAsync(ProductQueryParams query);
-    Task<ProductResponse?> GetByIdAsync(int id);
-    Task<ProductResponse> UploadImageAsync(int productId, Stream imageStream, string contentType);
-    Task<ProductResponse> DeleteImageAsync(int productId);
+    Task<ProductResponse?> GetByIdAsync(long id);
+    Task<ProductResponse> UploadImageAsync(long productId, Stream imageStream, string contentType);
+    Task<ProductResponse> DeleteImageAsync(long productId);
 }

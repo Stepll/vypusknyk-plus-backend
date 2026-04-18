@@ -25,21 +25,21 @@ public class ProductsController : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<ProductResponse>> GetById(int id)
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<ProductResponse>> GetById(long id)
     {
         var response = await _productService.GetByIdAsync(id);
         if (response is null) return NotFound();
         return Ok(response);
     }
 
-    [HttpPost("{id:int}/image")]
+    [HttpPost("{id:long}/image")]
     [Authorize]
     // TODO: Replace [Authorize] with [Authorize(Roles = "Admin")] once role-based auth is implemented.
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB
     public async Task<ActionResult<ProductResponse>> UploadImage(
-        int id,
+        long id,
         IFormFile image)
     {
         if (image is null || image.Length == 0)

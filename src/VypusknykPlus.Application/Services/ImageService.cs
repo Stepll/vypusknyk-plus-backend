@@ -19,7 +19,7 @@ public class ImageService : IImageService
     }
 
     public async Task<string> UploadProductImageAsync(
-        int productId, Stream imageStream, string contentType, CancellationToken ct = default)
+        long productId, Stream imageStream, string contentType, CancellationToken ct = default)
     {
         var extension = contentType switch
         {
