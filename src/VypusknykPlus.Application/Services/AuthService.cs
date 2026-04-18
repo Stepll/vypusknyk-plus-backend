@@ -52,7 +52,7 @@ public class AuthService : IAuthService
 
         var user = new User
         {
-            Id = Guid.NewGuid(),
+            
             Email = request.Email,
             FullName = request.FullName,
             Phone = request.Phone,
@@ -102,7 +102,7 @@ public class AuthService : IAuthService
         return response;
     }
 
-    public async Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
+    public async Task<AuthResponse> UpdateProfileAsync(long userId, UpdateProfileRequest request)
     {
         var user = await _db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("Користувача не знайдено");
@@ -116,7 +116,7 @@ public class AuthService : IAuthService
         return await ToAuthResponse(user);
     }
 
-    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
+    public async Task ChangePasswordAsync(long userId, ChangePasswordRequest request)
     {
         var user = await _db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("Користувача не знайдено");
@@ -161,7 +161,7 @@ public class AuthService : IAuthService
 
         var resetToken = new PasswordResetToken
         {
-            Id = Guid.NewGuid(),
+            
             Token = GenerateSecureToken(),
             ExpiresAt = DateTime.UtcNow.AddHours(1),
             CreatedAt = DateTime.UtcNow,
@@ -217,11 +217,11 @@ public class AuthService : IAuthService
         };
     }
 
-    private async Task<RefreshToken> CreateRefreshToken(Guid userId)
+    private async Task<RefreshToken> CreateRefreshToken(long userId)
     {
         var refreshToken = new RefreshToken
         {
-            Id = Guid.NewGuid(),
+            
             Token = GenerateSecureToken(),
             ExpiresAt = DateTime.UtcNow.AddDays(_jwt.RefreshTokenExpirationInDays),
             CreatedAt = DateTime.UtcNow,

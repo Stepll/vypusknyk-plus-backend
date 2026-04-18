@@ -4,9 +4,9 @@ namespace VypusknykPlus.Application.Services;
 
 public interface ICartService
 {
-    Task<CartItemResponse> AddAsync(Guid userId, AddCartItemRequest request);
-    Task<List<CartItemResponse>> GetUserCartAsync(Guid userId);
-    Task<CartItemResponse> UpdateQtyAsync(Guid userId, Guid itemId, UpdateCartItemRequest request);
-    Task DeleteAsync(Guid userId, Guid itemId);
-    Task ClearAsync(Guid userId);
+    Task<CartItemResponse> AddAsync(long userId, AddCartItemRequest request);
+    Task<List<CartItemResponse>> GetUserCartAsync(long userId);
+    Task<CartItemResponse> UpdateQtyAsync(long userId, Guid itemId, UpdateCartItemRequest request);
+    Task DeleteAsync(long userId, Guid itemId);
+    Task ClearAsync(long userId);
 }

@@ -32,7 +32,7 @@ public class Order : BaseEntity
     public bool IsAnonymous { get; set; }
     public string? GuestToken { get; set; }
 
-    public Guid? UserId { get; set; }
+    public long? UserId { get; set; }
     public User? User { get; set; }
 
     public ICollection<OrderItem> Items { get; set; } = [];

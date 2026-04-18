@@ -13,5 +13,5 @@ public interface IAdminService
     Task DeleteProductAsync(int id);
 
     Task<PagedResponse<AdminUserResponse>> GetUsersAsync(int page, int pageSize);
-    Task<AdminUserResponse?> GetUserAsync(Guid id);
+    Task<AdminUserResponse?> GetUserAsync(long id);
 }

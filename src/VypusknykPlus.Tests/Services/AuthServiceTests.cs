@@ -196,9 +196,9 @@ public class AuthServiceTests : IDisposable
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static User CreateUser(string email, string password) => new()
+    private static User CreateUser(string email, string password, long id = 0) => new()
     {
-        Id = Guid.NewGuid(),
+        Id = id,
         Email = email,
         FullName = "Тестовий Користувач",
         PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),

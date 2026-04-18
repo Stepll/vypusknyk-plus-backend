@@ -23,8 +23,8 @@ public class AdminUsersController : ControllerBase
         return Ok(await _admin.GetUsersAsync(page, pageSize));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<AdminUserResponse>> GetById(Guid id)
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<AdminUserResponse>> GetById(long id)
     {
         var user = await _admin.GetUserAsync(id);
         return user is null ? NotFound() : Ok(user);

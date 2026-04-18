@@ -18,7 +18,7 @@ public class CartController : ControllerBase
         _cartService = cartService;
     }
 
-    private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private long GetUserId() => long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
     public async Task<ActionResult<List<CartItemResponse>>> GetCart()

@@ -56,7 +56,7 @@ public class AuthController : ControllerBase
     [HttpPut("profile")]
     public async Task<ActionResult<AuthResponse>> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var response = await _authService.UpdateProfileAsync(userId, request);
         return Ok(response);
     }
@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
     [HttpPut("password")]
     public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _authService.ChangePasswordAsync(userId, request);
         return NoContent();
     }

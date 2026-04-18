@@ -16,7 +16,7 @@ public class AdminOrderResponse
     public string Status { get; set; } = string.Empty;
     public decimal Total { get; set; }
     public bool IsAnonymous { get; set; }
-    public Guid? UserId { get; set; }
+    public long? UserId { get; set; }
     public string? Email { get; set; }
     public string? Comment { get; set; }
     public string Payment { get; set; } = string.Empty;

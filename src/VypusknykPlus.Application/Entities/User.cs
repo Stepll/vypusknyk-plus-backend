@@ -2,6 +2,8 @@ namespace VypusknykPlus.Application.Entities;
 
 public class User : BaseEntity
 {
+    public new long Id { get; set; }
+
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string? Phone { get; set; }

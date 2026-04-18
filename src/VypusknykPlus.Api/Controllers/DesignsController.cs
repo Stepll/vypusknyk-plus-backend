@@ -18,7 +18,7 @@ public class DesignsController : ControllerBase
         _designService = designService;
     }
 
-    private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private long GetUserId() => long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpPost]
     public async Task<ActionResult<DesignResponse>> Save([FromBody] SaveDesignRequest request)

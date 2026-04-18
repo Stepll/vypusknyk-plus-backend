@@ -8,6 +8,6 @@ public class SavedDesign : BaseEntity
     public DateTime SavedAt { get; set; }
     public RibbonState State { get; set; } = new();
 
-    public Guid UserId { get; set; }
+    public long UserId { get; set; }
     public User User { get; set; } = null!;
 }

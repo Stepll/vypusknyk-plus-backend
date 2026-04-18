@@ -4,9 +4,9 @@ namespace VypusknykPlus.Application.Services;
 
 public interface IOrderService
 {
-    Task<OrderResponse> CreateAsync(Guid? userId, CreateOrderRequest request);
-    Task<OrderListResponse> GetUserOrdersAsync(Guid userId);
-    Task<OrderResponse?> GetByIdAsync(Guid userId, Guid orderId);
+    Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request);
+    Task<OrderListResponse> GetUserOrdersAsync(long userId);
+    Task<OrderResponse?> GetByIdAsync(long userId, Guid orderId);
     Task<OrderListResponse> GetGuestOrdersAsync(string guestToken);
-    Task ClaimGuestOrdersAsync(Guid userId, string userEmail, string? guestToken);
+    Task ClaimGuestOrdersAsync(long userId, string userEmail, string? guestToken);
 }

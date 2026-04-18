@@ -20,7 +20,7 @@ public class OrderService : IOrderService
         _logger = logger;
     }
 
-    public async Task<OrderResponse> CreateAsync(Guid? userId, CreateOrderRequest request)
+    public async Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request)
     {
         var deliveryMethod = request.Delivery.Method.ToLower() switch
         {
@@ -100,7 +100,7 @@ public class OrderService : IOrderService
         return MapToResponse(order);
     }
 
-    public async Task<OrderListResponse> GetUserOrdersAsync(Guid userId)
+    public async Task<OrderListResponse> GetUserOrdersAsync(long userId)
     {
         var orders = await _db.Orders
             .Include(o => o.Items)
@@ -114,7 +114,7 @@ public class OrderService : IOrderService
         };
     }
 
-    public async Task<OrderResponse?> GetByIdAsync(Guid userId, Guid orderId)
+    public async Task<OrderResponse?> GetByIdAsync(long userId, Guid orderId)
     {
         var order = await _db.Orders
             .Include(o => o.Items)
@@ -134,7 +134,7 @@ public class OrderService : IOrderService
         return new OrderListResponse { Items = orders.Select(MapToResponse).ToList() };
     }
 
-    public async Task ClaimGuestOrdersAsync(Guid userId, string userEmail, string? guestToken)
+    public async Task ClaimGuestOrdersAsync(long userId, string userEmail, string? guestToken)
     {
         var orders = await _db.Orders
             .Where(o => o.UserId == null &&

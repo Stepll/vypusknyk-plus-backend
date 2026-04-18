@@ -18,7 +18,7 @@ public class CartService : ICartService
         _logger = logger;
     }
 
-    public async Task<CartItemResponse> AddAsync(Guid userId, AddCartItemRequest request)
+    public async Task<CartItemResponse> AddAsync(long userId, AddCartItemRequest request)
     {
         ProductSnapshot snapshot;
         int? productId = null;
@@ -68,7 +68,7 @@ public class CartService : ICartService
         return MapToResponse(cartItem);
     }
 
-    public async Task<List<CartItemResponse>> GetUserCartAsync(Guid userId)
+    public async Task<List<CartItemResponse>> GetUserCartAsync(long userId)
     {
         return await _db.CartItems
             .Where(ci => ci.UserId == userId)
@@ -77,7 +77,7 @@ public class CartService : ICartService
             .ToListAsync();
     }
 
-    public async Task<CartItemResponse> UpdateQtyAsync(Guid userId, Guid itemId, UpdateCartItemRequest request)
+    public async Task<CartItemResponse> UpdateQtyAsync(long userId, Guid itemId, UpdateCartItemRequest request)
     {
         var cartItem = await _db.CartItems
             .FirstOrDefaultAsync(ci => ci.Id == itemId && ci.UserId == userId)
@@ -94,7 +94,7 @@ public class CartService : ICartService
         return MapToResponse(cartItem);
     }
 
-    public async Task DeleteAsync(Guid userId, Guid itemId)
+    public async Task DeleteAsync(long userId, Guid itemId)
     {
         var cartItem = await _db.CartItems
             .FirstOrDefaultAsync(ci => ci.Id == itemId && ci.UserId == userId)
@@ -106,7 +106,7 @@ public class CartService : ICartService
         _logger.LogInformation("Cart item {ItemId} removed for user {UserId}", itemId, userId);
     }
 
-    public async Task ClearAsync(Guid userId)
+    public async Task ClearAsync(long userId)
     {
         var items = await _db.CartItems
             .Where(ci => ci.UserId == userId)

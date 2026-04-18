@@ -18,14 +18,14 @@ public class OrdersController : ControllerBase
         _orderService = orderService;
     }
 
-    private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private long GetUserId() => long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private string GetUserEmail() => User.FindFirstValue(ClaimTypes.Email)!;
 
     [HttpPost]
     [AllowAnonymous]
     public async Task<ActionResult<OrderResponse>> Create([FromBody] CreateOrderRequest request)
     {
-        Guid? userId = User.Identity?.IsAuthenticated == true ? GetUserId() : null;
+        long? userId = User.Identity?.IsAuthenticated == true ? GetUserId() : null;
         var response = await _orderService.CreateAsync(userId, request);
         return Created(string.Empty, response);
     }

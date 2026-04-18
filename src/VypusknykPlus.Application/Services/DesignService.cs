@@ -17,7 +17,7 @@ public class DesignService : IDesignService
         _logger = logger;
     }
 
-    public async Task<DesignResponse> SaveAsync(Guid userId, SaveDesignRequest request)
+    public async Task<DesignResponse> SaveAsync(long userId, SaveDesignRequest request)
     {
         var design = new SavedDesign
         {
@@ -38,7 +38,7 @@ public class DesignService : IDesignService
         return MapToResponse(design);
     }
 
-    public async Task<List<DesignResponse>> GetUserDesignsAsync(Guid userId)
+    public async Task<List<DesignResponse>> GetUserDesignsAsync(long userId)
     {
         return await _db.SavedDesigns
             .Where(d => d.UserId == userId)
@@ -47,7 +47,7 @@ public class DesignService : IDesignService
             .ToListAsync();
     }
 
-    public async Task<DesignResponse> UpdateAsync(Guid userId, Guid designId, SaveDesignRequest request)
+    public async Task<DesignResponse> UpdateAsync(long userId, Guid designId, SaveDesignRequest request)
     {
         var design = await _db.SavedDesigns
             .FirstOrDefaultAsync(d => d.Id == designId && d.UserId == userId);
@@ -67,7 +67,7 @@ public class DesignService : IDesignService
         return MapToResponse(design);
     }
 
-    public async Task DeleteAsync(Guid userId, Guid designId)
+    public async Task DeleteAsync(long userId, Guid designId)
     {
         var design = await _db.SavedDesigns
             .FirstOrDefaultAsync(d => d.Id == designId && d.UserId == userId);

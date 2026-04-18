@@ -133,7 +133,7 @@ public class AdminService : IAdminService
         };
     }
 
-    public async Task<AdminUserResponse?> GetUserAsync(Guid id)
+    public async Task<AdminUserResponse?> GetUserAsync(long id)
     {
         return await _db.Users
             .AsNoTracking()

@@ -4,8 +4,8 @@ namespace VypusknykPlus.Application.Services;
 
 public interface IDesignService
 {
-    Task<DesignResponse> SaveAsync(Guid userId, SaveDesignRequest request);
-    Task<List<DesignResponse>> GetUserDesignsAsync(Guid userId);
-    Task<DesignResponse> UpdateAsync(Guid userId, Guid designId, SaveDesignRequest request);
-    Task DeleteAsync(Guid userId, Guid designId);
+    Task<DesignResponse> SaveAsync(long userId, SaveDesignRequest request);
+    Task<List<DesignResponse>> GetUserDesignsAsync(long userId);
+    Task<DesignResponse> UpdateAsync(long userId, Guid designId, SaveDesignRequest request);
+    Task DeleteAsync(long userId, Guid designId);
 }
