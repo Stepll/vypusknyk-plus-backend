@@ -46,9 +46,11 @@ src/
 | GET    | /api/v1/products          | Список продуктів (фільтри) | -           |
 | GET    | /api/v1/products/{id}     | Деталі продукту            | -           |
 | POST   | /api/v1/products/{id}/image | Завантажити зображення   | JWT         |
-| POST   | /api/v1/orders            | Створити замовлення        | JWT         |
+| POST   | /api/v1/orders            | Створити замовлення        | -/JWT       |
 | GET    | /api/v1/orders            | Замовлення користувача     | JWT         |
 | GET    | /api/v1/orders/{id}       | Деталі замовлення          | JWT         |
+| GET    | /api/v1/orders/guest/{token} | Замовлення гостя        | -           |
+| POST   | /api/v1/orders/claim      | Прив'язати гостьові замовлення | JWT    |
 | POST   | /api/v1/designs           | Зберегти дизайн            | JWT         |
 | GET    | /api/v1/designs           | Дизайни користувача        | JWT         |
 | PUT    | /api/v1/designs/{id}      | Оновити дизайн             | JWT         |
@@ -111,6 +113,10 @@ docker compose up --build
 - [x] OrderService (create з генерацією OrderNumber, get user orders, get by id)
 - [x] JWT Refresh Tokens (30 днів, rotation, revoke при зміні пароля)
 - [x] Email сервіс (MailKit, SMTP) + Forgot/Reset Password (token 1 год, revoke refresh tokens)
+- [x] Nullable productId для кастомних стрічок — `AddCartItemRequest` і `CreateOrderItemRequest` приймають `int?`; CartService будує snapshot з Name/Price коли productId == null
+- [x] Гостьове замовлення — `Order.UserId` nullable, `IsAnonymous`, `GuestToken`; POST /orders без авторизації; auto-claim по email при логіні/реєстрації; міграція AddGuestOrders
+- [x] Email підтвердження замовлення — `OrderService` надсилає `SendOrderConfirmationEmailAsync` після створення (fire-and-forget)
+- [x] SMTP налаштовано на сервері (Gmail App Password)
 
 ### TODO — Рекомендований порядок виконання
 
@@ -157,7 +163,7 @@ docker compose up --build
 - [x] **Підключити фронт до бека** — `VITE_API_URL=https://75.119.152.4.sslip.io` в Vercel env vars; API шар `src/api/{types,products,orders,designs,token}.ts`; Catalog, ProductPage, Checkout, Account, OrderDetail підключені до реального API; CartStore персистується в localStorage
 - [x] **Задеплоїти фронт на Vercel** — `https://vypusknyk-plus-fronend.vercel.app`, автодеплой при push до main; `vercel.json` SPA rewrites
 - [x] **HTTPS без домену** — Nginx reverse proxy + Let's Encrypt для `75.119.152.4.sslip.io`; бек доступний по HTTPS
-- [ ] **Налаштувати email** — додати SMTP дані в `.env` на сервері (`~/vypusknyk-plus/prod/.env`)
+- [x] **Налаштувати email** — Gmail SMTP налаштовано в `.env` на сервері (`~/vypusknyk-plus/prod/.env`)
 - [ ] **Домен** — купити домен і прив'язати до сервера (75.119.152.4); оновити Nginx + Let's Encrypt
 - [ ] **Адмінка** — панель для управління замовленнями та продуктами
 
@@ -166,17 +172,16 @@ docker compose up --build
 #### Відомі обмеження / технічний борг
 
 - Кошик не синхронізується з беком (тільки localStorage) — гость і авторизований користувач мають окремі кошики
-- Constructor ribbons (`productId = 0`) не можуть бути оформлені через `/api/v1/orders` (валідатор вимагає `productId > 0`)
-- JWT refresh token не використовується на фронті (тільки access token; при закінченні сесії — logout)
 - Зображення продуктів (MinIO) не завантажені — каталог показує кольорові заглушки
 
 ---
 
 #### Фаза 6 — Критично для бізнесу
 
-- [ ] **Конструктор → замовлення** — додати продукт "Кастомна стрічка" в БД (або дозволити `productId = null` на беці), щоб constructor ribbons можна було оформити через `/api/v1/orders`
-- [ ] **JWT refresh на фронті** — автоматично оновлювати access token через `/api/v1/auth/refresh` замість logout при закінченні сесії (15 хв)
-- [ ] **Email (SMTP)** — заповнити `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM_EMAIL` у `.env` на сервері; підтвердження замовлення надсилатиметься автоматично
+- [x] **Конструктор → замовлення** — `productId = null` дозволено в Cart і Order; validator пропускає null; CartService будує snapshot з переданих Name/Price
+- [x] **JWT refresh на фронті** — `client.ts` перехоплює 401, робить refresh, повторює запит; при невдачі dispatch `auth:session-expired` → AuthStore скидає стан
+- [x] **Email (SMTP)** — Gmail App Password налаштовано в `.env` на сервері; підтвердження замовлення надсилається автоматично після створення
+- [x] **Гостьове замовлення** — оформлення без реєстрації; guestToken в localStorage; сторінка `/orders/guest`; auto-claim при логіні
 - [ ] **Зображення продуктів** — завантажити реальні фото через `POST /api/v1/products/{id}/image` (MinIO); оновити `MINIO_PUBLIC_ENDPOINT` в `.env`
 
 ---
