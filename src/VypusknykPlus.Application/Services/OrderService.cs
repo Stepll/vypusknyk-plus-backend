@@ -20,7 +20,7 @@ public class OrderService : IOrderService
         _logger = logger;
     }
 
-    public async Task<OrderResponse> CreateAsync(Guid userId, CreateOrderRequest request)
+    public async Task<OrderResponse> CreateAsync(Guid? userId, CreateOrderRequest request)
     {
         var deliveryMethod = request.Delivery.Method.ToLower() switch
         {
@@ -70,6 +70,8 @@ public class OrderService : IOrderService
             Email = request.Email,
             Comment = request.Comment,
             UserId = userId,
+            IsAnonymous = !userId.HasValue,
+            GuestToken = userId.HasValue ? null : request.GuestToken,
             Items = orderItems,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -82,9 +84,9 @@ public class OrderService : IOrderService
             order.OrderNumber, userId, total);
 
         var toEmail = request.Email;
-        if (string.IsNullOrEmpty(toEmail))
+        if (string.IsNullOrEmpty(toEmail) && userId.HasValue)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _db.Users.FindAsync(userId.Value);
             toEmail = user?.Email;
         }
 
@@ -119,6 +121,37 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
 
         return order is null ? null : MapToResponse(order);
+    }
+
+    public async Task<OrderListResponse> GetGuestOrdersAsync(string guestToken)
+    {
+        var orders = await _db.Orders
+            .Include(o => o.Items)
+            .Where(o => o.GuestToken == guestToken)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+
+        return new OrderListResponse { Items = orders.Select(MapToResponse).ToList() };
+    }
+
+    public async Task ClaimGuestOrdersAsync(Guid userId, string userEmail, string? guestToken)
+    {
+        var orders = await _db.Orders
+            .Where(o => o.UserId == null &&
+                (o.GuestToken == guestToken || o.Email == userEmail))
+            .ToListAsync();
+
+        foreach (var order in orders)
+        {
+            order.UserId = userId;
+            order.IsAnonymous = true;
+        }
+
+        if (orders.Count > 0)
+        {
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Claimed {Count} guest orders for user {UserId}", orders.Count, userId);
+        }
     }
 
     private static string GenerateOrderNumber()

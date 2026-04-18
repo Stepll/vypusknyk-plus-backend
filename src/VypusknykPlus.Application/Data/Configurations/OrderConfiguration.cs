@@ -31,12 +31,16 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             r.Property(x => x.Phone).IsRequired().HasMaxLength(20);
         });
 
+        builder.Property(o => o.GuestToken).HasMaxLength(36);
+
         builder.HasOne(o => o.User)
             .WithMany(u => u.Orders)
             .HasForeignKey(o => o.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
 
         builder.HasIndex(o => o.UserId);
+        builder.HasIndex(o => o.GuestToken);
         builder.HasIndex(o => o.OrderNumber).IsUnique();
     }
 }

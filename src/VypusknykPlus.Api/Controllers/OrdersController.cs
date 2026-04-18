@@ -19,11 +19,14 @@ public class OrdersController : ControllerBase
     }
 
     private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private string GetUserEmail() => User.FindFirstValue(ClaimTypes.Email)!;
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<ActionResult<OrderResponse>> Create([FromBody] CreateOrderRequest request)
     {
-        var response = await _orderService.CreateAsync(GetUserId(), request);
+        Guid? userId = User.Identity?.IsAuthenticated == true ? GetUserId() : null;
+        var response = await _orderService.CreateAsync(userId, request);
         return Created(string.Empty, response);
     }
 
@@ -40,5 +43,20 @@ public class OrdersController : ControllerBase
         var response = await _orderService.GetByIdAsync(GetUserId(), id);
         if (response is null) return NotFound();
         return Ok(response);
+    }
+
+    [HttpGet("guest/{guestToken}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<OrderListResponse>> GetGuestOrders(string guestToken)
+    {
+        var response = await _orderService.GetGuestOrdersAsync(guestToken);
+        return Ok(response);
+    }
+
+    [HttpPost("claim")]
+    public async Task<IActionResult> ClaimGuestOrders([FromBody] ClaimGuestOrdersRequest request)
+    {
+        await _orderService.ClaimGuestOrdersAsync(GetUserId(), GetUserEmail(), request.GuestToken);
+        return NoContent();
     }
 }

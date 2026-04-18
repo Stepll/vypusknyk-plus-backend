@@ -17,13 +17,15 @@ public class AuthService : IAuthService
     private readonly AppDbContext _db;
     private readonly JwtSettings _jwt;
     private readonly IEmailService _emailService;
+    private readonly IOrderService _orderService;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext db, IOptions<JwtSettings> jwt, IEmailService emailService, ILogger<AuthService> logger)
+    public AuthService(AppDbContext db, IOptions<JwtSettings> jwt, IEmailService emailService, IOrderService orderService, ILogger<AuthService> logger)
     {
         _db = db;
         _jwt = jwt.Value;
         _emailService = emailService;
+        _orderService = orderService;
         _logger = logger;
     }
 
@@ -35,6 +37,10 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Невірний email або пароль");
 
         _logger.LogInformation("User {Email} logged in", user.Email);
+
+        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email, null)
+            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
+                TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);
     }
@@ -59,6 +65,10 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("New user registered: {Email}", user.Email);
+
+        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email, null)
+            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
+                TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);
     }

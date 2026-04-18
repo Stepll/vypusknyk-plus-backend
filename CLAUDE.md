@@ -154,9 +154,34 @@ docker compose up --build
 
 #### Фаза 5 — Запуск продукту
 
-- [ ] **Підключити фронт до бека** — в `../Test_project` змінити `VITE_API_URL=http://75.119.152.4:8080`
-- [ ] **Задеплоїти фронт на Vercel** — реєстрація через GitHub, імпорт репо фронту, автодеплой
+- [x] **Підключити фронт до бека** — `VITE_API_URL=https://75.119.152.4.sslip.io` в Vercel env vars; API шар `src/api/{types,products,orders,designs,token}.ts`; Catalog, ProductPage, Checkout, Account, OrderDetail підключені до реального API; CartStore персистується в localStorage
+- [x] **Задеплоїти фронт на Vercel** — `https://vypusknyk-plus-fronend.vercel.app`, автодеплой при push до main; `vercel.json` SPA rewrites
+- [x] **HTTPS без домену** — Nginx reverse proxy + Let's Encrypt для `75.119.152.4.sslip.io`; бек доступний по HTTPS
 - [ ] **Налаштувати email** — додати SMTP дані в `.env` на сервері (`~/vypusknyk-plus/prod/.env`)
-- [ ] **Домен** — купити домен і прив'язати до сервера (75.119.152.4)
-- [ ] **HTTPS** — SSL сертифікат через Let's Encrypt після домену
+- [ ] **Домен** — купити домен і прив'язати до сервера (75.119.152.4); оновити Nginx + Let's Encrypt
 - [ ] **Адмінка** — панель для управління замовленнями та продуктами
+
+---
+
+#### Відомі обмеження / технічний борг
+
+- Кошик не синхронізується з беком (тільки localStorage) — гость і авторизований користувач мають окремі кошики
+- Constructor ribbons (`productId = 0`) не можуть бути оформлені через `/api/v1/orders` (валідатор вимагає `productId > 0`)
+- JWT refresh token не використовується на фронті (тільки access token; при закінченні сесії — logout)
+- Зображення продуктів (MinIO) не завантажені — каталог показує кольорові заглушки
+
+---
+
+#### Фаза 6 — Критично для бізнесу
+
+- [ ] **Конструктор → замовлення** — додати продукт "Кастомна стрічка" в БД (або дозволити `productId = null` на беці), щоб constructor ribbons можна було оформити через `/api/v1/orders`
+- [ ] **JWT refresh на фронті** — автоматично оновлювати access token через `/api/v1/auth/refresh` замість logout при закінченні сесії (15 хв)
+- [ ] **Email (SMTP)** — заповнити `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM_EMAIL` у `.env` на сервері; підтвердження замовлення надсилатиметься автоматично
+- [ ] **Зображення продуктів** — завантажити реальні фото через `POST /api/v1/products/{id}/image` (MinIO); оновити `MINIO_PUBLIC_ENDPOINT` в `.env`
+
+---
+
+#### Фаза 7 — Зростання
+
+- [ ] **Домен** — купити домен, прив'язати до `75.119.152.4`; оновити Nginx + Let's Encrypt (`certbot --nginx -d yourdomain.com`); замінити `sslip.io` у `VITE_API_URL` на Vercel
+- [ ] **Адмінка** — панель для перегляду/зміни статусу замовлень, управління продуктами (новий розділ або окремий React-додаток з роллю `Admin`)

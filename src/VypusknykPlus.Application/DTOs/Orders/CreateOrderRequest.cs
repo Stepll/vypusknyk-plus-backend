@@ -30,4 +30,5 @@ public class CreateOrderRequest
     public string Payment { get; set; } = string.Empty;
     public string? Email { get; set; }
     public string? Comment { get; set; }
+    public string? GuestToken { get; set; }
 }

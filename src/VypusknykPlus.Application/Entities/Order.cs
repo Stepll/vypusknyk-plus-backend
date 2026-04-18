@@ -29,8 +29,11 @@ public class Order : BaseEntity
     public string? Email { get; set; }
     public string? Comment { get; set; }
 
-    public Guid UserId { get; set; }
-    public User User { get; set; } = null!;
+    public bool IsAnonymous { get; set; }
+    public string? GuestToken { get; set; }
+
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
 
     public ICollection<OrderItem> Items { get; set; } = [];
 }
