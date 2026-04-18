@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<Admin> Admins => Set<Admin>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,5 +29,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SavedDesign>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<CartItem>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Product>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<Admin>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

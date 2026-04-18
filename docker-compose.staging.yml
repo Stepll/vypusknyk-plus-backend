@@ -59,6 +59,9 @@ services:
       Minio__BucketName: ${MINIO_BUCKET:-products}
       Minio__PublicEndpoint: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9002}
       Cors__AllowedOrigins__0: ${FRONTEND_URL:-http://localhost:5174}
+      Cors__AllowedOrigins__1: ${ADMIN_URL:-http://localhost:5175}
+      Admin__Email: ${ADMIN_EMAIL:-}
+      Admin__Password: ${ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
