@@ -7,7 +7,8 @@ public class CreateOrderItemRequestValidator : AbstractValidator<CreateOrderItem
     public CreateOrderItemRequestValidator()
     {
         RuleFor(x => x.ProductId)
-            .GreaterThan(0).WithMessage("Невалідний ProductId");
+            .GreaterThan(0).WithMessage("Невалідний ProductId")
+            .When(x => x.ProductId.HasValue);
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Назва товару обов'язкова")

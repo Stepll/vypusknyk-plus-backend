@@ -10,11 +10,13 @@ namespace VypusknykPlus.Application.Services;
 public class OrderService : IOrderService
 {
     private readonly AppDbContext _db;
+    private readonly IEmailService _email;
     private readonly ILogger<OrderService> _logger;
 
-    public OrderService(AppDbContext db, ILogger<OrderService> logger)
+    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger)
     {
         _db = db;
+        _email = email;
         _logger = logger;
     }
 
@@ -78,6 +80,20 @@ public class OrderService : IOrderService
 
         _logger.LogInformation("Order {OrderNumber} created for user {UserId}, total {Total}",
             order.OrderNumber, userId, total);
+
+        var toEmail = request.Email;
+        if (string.IsNullOrEmpty(toEmail))
+        {
+            var user = await _db.Users.FindAsync(userId);
+            toEmail = user?.Email;
+        }
+
+        if (!string.IsNullOrEmpty(toEmail))
+        {
+            _ = _email.SendOrderConfirmationEmailAsync(toEmail, request.Recipient.FullName, order.OrderNumber, total)
+                .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send order confirmation email for {OrderNumber}", order.OrderNumber),
+                    TaskContinuationOptions.OnlyOnFaulted);
+        }
 
         return MapToResponse(order);
     }

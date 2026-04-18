@@ -2,7 +2,7 @@ namespace VypusknykPlus.Application.DTOs.Orders;
 
 public class CreateOrderItemRequest
 {
-    public int ProductId { get; set; }
+    public int? ProductId { get; set; }
     public string Name { get; set; } = string.Empty;
     public int Qty { get; set; }
     public decimal Price { get; set; }

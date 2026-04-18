@@ -20,21 +20,38 @@ public class CartService : ICartService
 
     public async Task<CartItemResponse> AddAsync(Guid userId, AddCartItemRequest request)
     {
-        var product = await _db.Products.FindAsync(request.ProductId)
-            ?? throw new KeyNotFoundException("Продукт не знайдено");
+        ProductSnapshot snapshot;
+        int? productId = null;
 
-        var cartItem = new CartItem
+        if (request.ProductId.HasValue)
         {
-            Id = Guid.NewGuid(),
-            Qty = request.Qty,
-            ProductId = product.Id,
-            ProductSnapshot = new ProductSnapshot
+            var product = await _db.Products.FindAsync(request.ProductId.Value)
+                ?? throw new KeyNotFoundException("Продукт не знайдено");
+            productId = product.Id;
+            snapshot = new ProductSnapshot
             {
                 Name = product.Name,
                 Price = product.Price,
                 Category = product.Category.ToString().ToLower(),
                 Color = product.Color
-            },
+            };
+        }
+        else
+        {
+            snapshot = new ProductSnapshot
+            {
+                Name = request.Name!,
+                Price = request.Price!.Value,
+                Category = "ribbon"
+            };
+        }
+
+        var cartItem = new CartItem
+        {
+            Id = Guid.NewGuid(),
+            Qty = request.Qty,
+            ProductId = productId,
+            ProductSnapshot = snapshot,
             NamesData = request.NamesData,
             RibbonCustomization = request.RibbonCustomization,
             UserId = userId,
@@ -45,8 +62,8 @@ public class CartService : ICartService
         _db.CartItems.Add(cartItem);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Cart item {ItemId} added for user {UserId}, product {ProductId}",
-            cartItem.Id, userId, product.Id);
+        _logger.LogInformation("Cart item {ItemId} added for user {UserId}, productId {ProductId}",
+            cartItem.Id, userId, productId?.ToString() ?? "custom");
 
         return MapToResponse(cartItem);
     }
