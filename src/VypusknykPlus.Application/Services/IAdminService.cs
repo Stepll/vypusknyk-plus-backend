@@ -6,11 +6,14 @@ namespace VypusknykPlus.Application.Services;
 public interface IAdminService
 {
     Task<PagedResponse<AdminOrderResponse>> GetOrdersAsync(int page, int pageSize, string? status);
-    Task<AdminOrderResponse?> GetOrderAsync(Guid id);
-    Task UpdateOrderStatusAsync(Guid id, string status);
+    Task<AdminOrderResponse?> GetOrderAsync(long id);
+    Task UpdateOrderStatusAsync(long id, string status);
 
     Task<PagedResponse<AdminProductResponse>> GetProductsAsync(int page, int pageSize);
-    Task DeleteProductAsync(int id);
+    Task<AdminProductDetailResponse?> GetProductAsync(long id);
+    Task<AdminProductDetailResponse> CreateProductAsync(SaveProductRequest request);
+    Task<AdminProductDetailResponse> UpdateProductAsync(long id, SaveProductRequest request);
+    Task DeleteProductAsync(long id);
 
     Task<PagedResponse<AdminUserResponse>> GetUsersAsync(int page, int pageSize);
     Task<AdminUserResponse?> GetUserAsync(long id);

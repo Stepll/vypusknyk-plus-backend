@@ -43,7 +43,7 @@ public class AdminService : IAdminService
         };
     }
 
-    public async Task<AdminOrderResponse?> GetOrderAsync(Guid id)
+    public async Task<AdminOrderResponse?> GetOrderAsync(long id)
     {
         var order = await _db.Orders
             .Include(o => o.Items)
@@ -53,7 +53,7 @@ public class AdminService : IAdminService
         return order is null ? null : MapOrder(order);
     }
 
-    public async Task UpdateOrderStatusAsync(Guid id, string status)
+    public async Task UpdateOrderStatusAsync(long id, string status)
     {
         if (!Enum.TryParse<OrderStatus>(status, true, out var parsed))
             throw new ArgumentException($"Невідомий статус: {status}");
@@ -95,7 +95,63 @@ public class AdminService : IAdminService
         };
     }
 
-    public async Task DeleteProductAsync(int id)
+    public async Task<AdminProductDetailResponse?> GetProductAsync(long id)
+    {
+        var p = await _db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id);
+        return p is null ? null : MapProductDetail(p);
+    }
+
+    public async Task<AdminProductDetailResponse> CreateProductAsync(SaveProductRequest request)
+    {
+        if (!Enum.TryParse<ProductCategory>(request.Category, true, out var category))
+            throw new ArgumentException($"Невідома категорія: {request.Category}");
+
+        var product = new Product
+        {
+            Name = request.Name,
+            Description = request.Description,
+            Price = request.Price,
+            MinOrder = request.MinOrder,
+            Category = category,
+            Color = string.IsNullOrWhiteSpace(request.Color) ? null : request.Color,
+            Tags = request.Tags,
+            Popular = request.Popular,
+            IsNew = request.IsNew,
+            IsDeleted = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        _db.Products.Add(product);
+        await _db.SaveChangesAsync();
+        return MapProductDetail(product);
+    }
+
+    public async Task<AdminProductDetailResponse> UpdateProductAsync(long id, SaveProductRequest request)
+    {
+        var product = await _db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new KeyNotFoundException($"Продукт {id} не знайдено");
+
+        if (!Enum.TryParse<ProductCategory>(request.Category, true, out var category))
+            throw new ArgumentException($"Невідома категорія: {request.Category}");
+
+        product.Name = request.Name;
+        product.Description = request.Description;
+        product.Price = request.Price;
+        product.MinOrder = request.MinOrder;
+        product.Category = category;
+        product.Color = string.IsNullOrWhiteSpace(request.Color) ? null : request.Color;
+        product.Tags = request.Tags;
+        product.Popular = request.Popular;
+        product.IsNew = request.IsNew;
+        product.IsDeleted = request.IsDeleted;
+        product.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return MapProductDetail(product);
+    }
+
+    public async Task DeleteProductAsync(long id)
     {
         var product = await _db.Products.FindAsync(id)
             ?? throw new KeyNotFoundException($"Продукт {id} не знайдено");
@@ -149,6 +205,24 @@ public class AdminService : IAdminService
             })
             .FirstOrDefaultAsync();
     }
+
+    private AdminProductDetailResponse MapProductDetail(Product p) => new()
+    {
+        Id = p.Id,
+        Name = p.Name,
+        Description = p.Description,
+        Price = p.Price,
+        MinOrder = p.MinOrder,
+        Category = p.Category.ToString(),
+        Color = p.Color,
+        Tags = p.Tags,
+        Popular = p.Popular,
+        IsNew = p.IsNew,
+        ImageUrl = _imageService.GetPublicUrl(p.ImageKey),
+        IsDeleted = p.IsDeleted,
+        CreatedAt = p.CreatedAt,
+        UpdatedAt = p.UpdatedAt,
+    };
 
     private static AdminOrderResponse MapOrder(Order o) => new()
     {

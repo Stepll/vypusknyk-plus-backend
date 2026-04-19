@@ -23,8 +23,30 @@ public class AdminProductsController : ControllerBase
         return Ok(await _admin.GetProductsAsync(page, pageSize));
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<AdminProductDetailResponse>> GetById(long id)
+    {
+        var product = await _admin.GetProductAsync(id);
+        if (product is null) return NotFound();
+        return Ok(product);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<AdminProductDetailResponse>> Create([FromBody] SaveProductRequest request)
+    {
+        var product = await _admin.CreateProductAsync(request);
+        return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
+    }
+
+    [HttpPut("{id:long}")]
+    public async Task<ActionResult<AdminProductDetailResponse>> Update(long id, [FromBody] SaveProductRequest request)
+    {
+        var product = await _admin.UpdateProductAsync(id, request);
+        return Ok(product);
+    }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id)
     {
         await _admin.DeleteProductAsync(id);
         return NoContent();
