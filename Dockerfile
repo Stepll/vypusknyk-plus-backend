@@ -2,13 +2,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /source
 
-# Copy solution + project files first for layer caching
+# Copy project files first for layer caching of restore
 COPY VypusknykPlus.sln .
 COPY src/VypusknykPlus.Api/VypusknykPlus.Api.csproj                      src/VypusknykPlus.Api/
 COPY src/VypusknykPlus.Application/VypusknykPlus.Application.csproj      src/VypusknykPlus.Application/
-COPY src/VypusknykPlus.Tests/VypusknykPlus.Tests.csproj                  src/VypusknykPlus.Tests/
 
-RUN dotnet restore
+# Restore only API (and its Application dependency) — avoids restoring test packages
+RUN dotnet restore src/VypusknykPlus.Api/VypusknykPlus.Api.csproj
 
 # Copy full source and publish
 COPY src/ src/
