@@ -21,7 +21,7 @@ public class CartService : ICartService
     public async Task<CartItemResponse> AddAsync(long userId, AddCartItemRequest request)
     {
         ProductSnapshot snapshot;
-        int? productId = null;
+        long? productId = null;
 
         if (request.ProductId.HasValue)
         {
@@ -48,7 +48,6 @@ public class CartService : ICartService
 
         var cartItem = new CartItem
         {
-            Id = Guid.NewGuid(),
             Qty = request.Qty,
             ProductId = productId,
             ProductSnapshot = snapshot,
@@ -77,7 +76,7 @@ public class CartService : ICartService
             .ToListAsync();
     }
 
-    public async Task<CartItemResponse> UpdateQtyAsync(long userId, Guid itemId, UpdateCartItemRequest request)
+    public async Task<CartItemResponse> UpdateQtyAsync(long userId, long itemId, UpdateCartItemRequest request)
     {
         var cartItem = await _db.CartItems
             .FirstOrDefaultAsync(ci => ci.Id == itemId && ci.UserId == userId)
@@ -94,7 +93,7 @@ public class CartService : ICartService
         return MapToResponse(cartItem);
     }
 
-    public async Task DeleteAsync(long userId, Guid itemId)
+    public async Task DeleteAsync(long userId, long itemId)
     {
         var cartItem = await _db.CartItems
             .FirstOrDefaultAsync(ci => ci.Id == itemId && ci.UserId == userId)

@@ -6,7 +6,7 @@ public class CartItem : BaseEntity
 {
     public int Qty { get; set; }
 
-    public int? ProductId { get; set; }
+    public long? ProductId { get; set; }
     public Product? Product { get; set; }
 
     public ProductSnapshot? ProductSnapshot { get; set; }

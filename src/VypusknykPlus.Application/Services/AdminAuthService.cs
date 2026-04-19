@@ -33,7 +33,7 @@ public class AdminAuthService : IAdminAuthService
             !string.IsNullOrWhiteSpace(_superAdminPassword) &&
             request.Password == _superAdminPassword)
         {
-            var superAdminId = Guid.Empty;
+            const long superAdminId = 0L;
             return new AdminAuthResponse
             {
                 Id = superAdminId,
@@ -60,7 +60,7 @@ public class AdminAuthService : IAdminAuthService
         };
     }
 
-    private string GenerateToken(Guid id, string email, string fullName)
+    private string GenerateToken(long id, string email, string fullName)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

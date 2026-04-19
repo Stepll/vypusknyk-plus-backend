@@ -21,7 +21,6 @@ public class DesignService : IDesignService
     {
         var design = new SavedDesign
         {
-            Id = Guid.NewGuid(),
             DesignName = request.DesignName,
             SavedAt = DateTime.UtcNow,
             State = request.State,
@@ -47,7 +46,7 @@ public class DesignService : IDesignService
             .ToListAsync();
     }
 
-    public async Task<DesignResponse> UpdateAsync(long userId, Guid designId, SaveDesignRequest request)
+    public async Task<DesignResponse> UpdateAsync(long userId, long designId, SaveDesignRequest request)
     {
         var design = await _db.SavedDesigns
             .FirstOrDefaultAsync(d => d.Id == designId && d.UserId == userId);
@@ -67,7 +66,7 @@ public class DesignService : IDesignService
         return MapToResponse(design);
     }
 
-    public async Task DeleteAsync(long userId, Guid designId)
+    public async Task DeleteAsync(long userId, long designId)
     {
         var design = await _db.SavedDesigns
             .FirstOrDefaultAsync(d => d.Id == designId && d.UserId == userId);

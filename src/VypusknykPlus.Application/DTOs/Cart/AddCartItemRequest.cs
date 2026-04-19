@@ -4,7 +4,7 @@ namespace VypusknykPlus.Application.DTOs.Cart;
 
 public class AddCartItemRequest
 {
-    public int? ProductId { get; set; }
+    public long? ProductId { get; set; }
     public string? Name { get; set; }
     public decimal? Price { get; set; }
     public int Qty { get; set; }

@@ -23,7 +23,7 @@ public class OrderRecipientResponse
 
 public class OrderResponse
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public DateTime Date { get; set; }
     public string Status { get; set; } = string.Empty;

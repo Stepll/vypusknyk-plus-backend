@@ -24,15 +24,15 @@ public class AdminOrdersController : ControllerBase
         return Ok(await _admin.GetOrdersAsync(page, pageSize, status));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<AdminOrderResponse>> GetById(Guid id)
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<AdminOrderResponse>> GetById(long id)
     {
         var order = await _admin.GetOrderAsync(id);
         return order is null ? NotFound() : Ok(order);
     }
 
-    [HttpPatch("{id:guid}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateOrderStatusRequest request)
+    [HttpPatch("{id:long}/status")]
+    public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateOrderStatusRequest request)
     {
         await _admin.UpdateOrderStatusAsync(id, request.Status);
         return NoContent();

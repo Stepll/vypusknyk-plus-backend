@@ -24,9 +24,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Admin", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -56,9 +58,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.CartItem", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -66,8 +70,8 @@ namespace VypusknykPlus.Application.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("ProductId")
-                        .HasColumnType("integer");
+                    b.Property<long?>("ProductId")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Qty")
                         .HasColumnType("integer");
@@ -89,9 +93,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Order", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Comment")
                         .HasMaxLength(1000)
@@ -153,9 +159,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.OrderItem", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -168,8 +176,8 @@ namespace VypusknykPlus.Application.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uuid");
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(10, 2)
@@ -190,9 +198,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.PasswordResetToken", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -223,11 +233,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Product", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -287,7 +297,7 @@ namespace VypusknykPlus.Application.Migrations
                     b.HasData(
                         new
                         {
-                            Id = 1,
+                            Id = 1L,
                             Category = "Ribbon",
                             Color = "coral",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -303,7 +313,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 2,
+                            Id = 2L,
                             Category = "Ribbon",
                             Color = "blue-yellow",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -319,7 +329,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 3,
+                            Id = 3L,
                             Category = "Ribbon",
                             Color = "gold",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -335,7 +345,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 4,
+                            Id = 4L,
                             Category = "Ribbon",
                             Color = "white",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -351,7 +361,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 5,
+                            Id = 5L,
                             Category = "Ribbon",
                             Color = "red",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -367,7 +377,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 6,
+                            Id = 6L,
                             Category = "Ribbon",
                             Color = "purple",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -383,7 +393,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 7,
+                            Id = 7L,
                             Category = "Medal",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Металева медаль на стрічці з гравіюванням імені та року. Діаметр 70 мм, колір на вибір.",
@@ -398,7 +408,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 8,
+                            Id = 8L,
                             Category = "Medal",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Класична шкільна медаль із зображенням книги та факела. Золоте або срібне покриття.",
@@ -413,7 +423,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 9,
+                            Id = 9L,
                             Category = "Medal",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Спортивна медаль для олімпіад і змагань. I, II, III місця. Індивідуальна гравіювання.",
@@ -428,7 +438,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 10,
+                            Id = 10L,
                             Category = "Certificate",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Святкова грамота А4 з іменем, класом та датою. Кольоровий друк на дизайнерському папері.",
@@ -443,7 +453,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 11,
+                            Id = 11L,
                             Category = "Certificate",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Преміальний диплом на картоні з тисненням і стрічкою. Формат A4.",
@@ -458,7 +468,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 12,
+                            Id = 12L,
                             Category = "Accessory",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Комплект для класу: стрічки + медаль + грамота для кожного учня. Знижка 15% від окремих цін.",
@@ -473,7 +483,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 13,
+                            Id = 13L,
                             Category = "Accessory",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Металева зірка-підвіска із гравіюванням на замовлення. Можна прикріпити до стрічки або рюкзака.",
@@ -488,7 +498,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 14,
+                            Id = 14L,
                             Category = "Ribbon",
                             Color = "green",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -504,7 +514,7 @@ namespace VypusknykPlus.Application.Migrations
                         },
                         new
                         {
-                            Id = 15,
+                            Id = 15L,
                             Category = "Ribbon",
                             Color = "black",
                             CreatedAt = new DateTime(2026, 4, 8, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -522,9 +532,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.RefreshToken", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -555,9 +567,11 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.SavedDesign", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -645,8 +659,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.OwnsOne("VypusknykPlus.Application.ValueObjects.NamesData", "NamesData", b1 =>
                         {
-                            b1.Property<Guid>("CartItemId")
-                                .HasColumnType("uuid");
+                            b1.Property<long>("CartItemId")
+                                .HasColumnType("bigint");
 
                             b1.Property<string>("School")
                                 .IsRequired()
@@ -664,8 +678,8 @@ namespace VypusknykPlus.Application.Migrations
 
                             b1.OwnsMany("VypusknykPlus.Application.ValueObjects.ClassGroup", "Groups", b2 =>
                                 {
-                                    b2.Property<Guid>("NamesDataCartItemId")
-                                        .HasColumnType("uuid");
+                                    b2.Property<long>("NamesDataCartItemId")
+                                        .HasColumnType("bigint");
 
                                     b2.Property<int>("Id")
                                         .ValueGeneratedOnAdd()
@@ -694,8 +708,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.OwnsOne("VypusknykPlus.Application.ValueObjects.ProductSnapshot", "ProductSnapshot", b1 =>
                         {
-                            b1.Property<Guid>("CartItemId")
-                                .HasColumnType("uuid");
+                            b1.Property<long>("CartItemId")
+                                .HasColumnType("bigint");
 
                             b1.Property<string>("Category")
                                 .IsRequired()
@@ -727,8 +741,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.OwnsOne("VypusknykPlus.Application.ValueObjects.RibbonCustomization", "RibbonCustomization", b1 =>
                         {
-                            b1.Property<Guid>("CartItemId")
-                                .HasColumnType("uuid");
+                            b1.Property<long>("CartItemId")
+                                .HasColumnType("bigint");
 
                             b1.Property<string>("Color")
                                 .IsRequired()
@@ -813,8 +827,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.OwnsOne("VypusknykPlus.Application.ValueObjects.DeliveryInfo", "Delivery", b1 =>
                         {
-                            b1.Property<Guid>("OrderId")
-                                .HasColumnType("uuid");
+                            b1.Property<long>("OrderId")
+                                .HasColumnType("bigint");
 
                             b1.Property<string>("City")
                                 .HasMaxLength(200)
@@ -843,8 +857,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.OwnsOne("VypusknykPlus.Application.ValueObjects.RecipientInfo", "Recipient", b1 =>
                         {
-                            b1.Property<Guid>("OrderId")
-                                .HasColumnType("uuid");
+                            b1.Property<long>("OrderId")
+                                .HasColumnType("bigint");
 
                             b1.Property<string>("FullName")
                                 .IsRequired()
@@ -916,8 +930,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.OwnsOne("VypusknykPlus.Application.ValueObjects.RibbonState", "State", b1 =>
                         {
-                            b1.Property<Guid>("SavedDesignId")
-                                .HasColumnType("uuid");
+                            b1.Property<long>("SavedDesignId")
+                                .HasColumnType("bigint");
 
                             b1.Property<string>("Color")
                                 .IsRequired()

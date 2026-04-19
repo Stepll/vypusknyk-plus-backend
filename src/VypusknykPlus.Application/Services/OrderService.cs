@@ -38,7 +38,6 @@ public class OrderService : IOrderService
 
         var orderItems = request.Items.Select(i => new OrderItem
         {
-            Id = Guid.NewGuid(),
             Name = i.Name,
             Quantity = i.Qty,
             Price = i.Price,
@@ -50,7 +49,6 @@ public class OrderService : IOrderService
 
         var order = new Order
         {
-            Id = Guid.NewGuid(),
             OrderNumber = GenerateOrderNumber(),
             Status = OrderStatus.Accepted,
             Total = total,
@@ -114,7 +112,7 @@ public class OrderService : IOrderService
         };
     }
 
-    public async Task<OrderResponse?> GetByIdAsync(long userId, Guid orderId)
+    public async Task<OrderResponse?> GetByIdAsync(long userId, long orderId)
     {
         var order = await _db.Orders
             .Include(o => o.Items)

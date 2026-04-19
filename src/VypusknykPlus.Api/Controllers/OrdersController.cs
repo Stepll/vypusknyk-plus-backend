@@ -37,8 +37,8 @@ public class OrdersController : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<OrderResponse>> GetById(Guid id)
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<OrderResponse>> GetById(long id)
     {
         var response = await _orderService.GetByIdAsync(GetUserId(), id);
         if (response is null) return NotFound();

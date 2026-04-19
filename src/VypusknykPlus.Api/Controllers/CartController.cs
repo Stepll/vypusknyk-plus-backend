@@ -34,15 +34,15 @@ public class CartController : ControllerBase
         return Created(string.Empty, response);
     }
 
-    [HttpPatch("{id:guid}")]
-    public async Task<ActionResult<CartItemResponse>> UpdateQty(Guid id, [FromBody] UpdateCartItemRequest request)
+    [HttpPatch("{id:long}")]
+    public async Task<ActionResult<CartItemResponse>> UpdateQty(long id, [FromBody] UpdateCartItemRequest request)
     {
         var response = await _cartService.UpdateQtyAsync(GetUserId(), id, request);
         return Ok(response);
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<ActionResult> RemoveItem(Guid id)
+    [HttpDelete("{id:long}")]
+    public async Task<ActionResult> RemoveItem(long id)
     {
         await _cartService.DeleteAsync(GetUserId(), id);
         return NoContent();

@@ -34,15 +34,15 @@ public class DesignsController : ControllerBase
         return Ok(response);
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<ActionResult<DesignResponse>> Update(Guid id, [FromBody] SaveDesignRequest request)
+    [HttpPut("{id:long}")]
+    public async Task<ActionResult<DesignResponse>> Update(long id, [FromBody] SaveDesignRequest request)
     {
         var response = await _designService.UpdateAsync(GetUserId(), id, request);
         return Ok(response);
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<ActionResult> Delete(Guid id)
+    [HttpDelete("{id:long}")]
+    public async Task<ActionResult> Delete(long id)
     {
         await _designService.DeleteAsync(GetUserId(), id);
         return NoContent();

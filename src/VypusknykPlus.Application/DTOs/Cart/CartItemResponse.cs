@@ -4,8 +4,8 @@ namespace VypusknykPlus.Application.DTOs.Cart;
 
 public class CartItemResponse
 {
-    public Guid Id { get; set; }
-    public int? ProductId { get; set; }
+    public long Id { get; set; }
+    public long? ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string ProductCategory { get; set; } = string.Empty;
     public string? ProductColor { get; set; }

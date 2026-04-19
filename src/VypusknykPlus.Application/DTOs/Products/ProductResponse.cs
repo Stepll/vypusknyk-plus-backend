@@ -2,7 +2,7 @@ namespace VypusknykPlus.Application.DTOs.Products;
 
 public class ProductResponse
 {
-    public int Id { get; set; }
+    public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string? Color { get; set; }

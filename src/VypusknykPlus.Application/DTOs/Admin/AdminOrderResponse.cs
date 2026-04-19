@@ -2,7 +2,7 @@ namespace VypusknykPlus.Application.DTOs.Admin;
 
 public class AdminOrderItemResponse
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal Price { get; set; }
@@ -10,7 +10,7 @@ public class AdminOrderItemResponse
 
 public class AdminOrderResponse
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public string Status { get; set; } = string.Empty;
