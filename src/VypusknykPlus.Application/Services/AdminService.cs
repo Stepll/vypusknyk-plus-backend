@@ -338,6 +338,66 @@ public class AdminService : IAdminService
         };
     }
 
+    public async Task<PagedResponse<AdminSavedDesignResponse>> GetSavedDesignsAsync(int page, int pageSize)
+    {
+        var query = _db.SavedDesigns
+            .IgnoreQueryFilters()
+            .Include(d => d.User)
+            .Where(d => !d.IsDeleted)
+            .AsNoTracking();
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(d => d.SavedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(d => new AdminSavedDesignResponse
+            {
+                Id = d.Id,
+                DesignName = d.DesignName,
+                SavedAt = d.SavedAt,
+                UserId = d.UserId,
+                UserFullName = d.User.FullName,
+                UserEmail = d.User.Email,
+            })
+            .ToListAsync();
+
+        return new PagedResponse<AdminSavedDesignResponse>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
+    public async Task<PagedResponse<AdminAdminResponse>> GetAdminsAsync(int page, int pageSize)
+    {
+        var query = _db.Admins.IgnoreQueryFilters().AsNoTracking();
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderBy(a => a.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => new AdminAdminResponse
+            {
+                Id = a.Id,
+                Email = a.Email,
+                FullName = a.FullName,
+                CreatedAt = a.CreatedAt,
+            })
+            .ToListAsync();
+
+        return new PagedResponse<AdminAdminResponse>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
     private AdminProductDetailResponse MapProductDetail(Product p) => new()
     {
         Id = p.Id,
