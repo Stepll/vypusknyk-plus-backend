@@ -125,7 +125,6 @@ public class AuthServiceTests : IDisposable
 
         var oldToken = new RefreshToken
         {
-            Id = Guid.NewGuid(),
             Token = "valid-refresh-token",
             ExpiresAt = DateTime.UtcNow.AddDays(30),
             CreatedAt = DateTime.UtcNow,
@@ -149,7 +148,6 @@ public class AuthServiceTests : IDisposable
         _db.Users.Add(user);
         _db.RefreshTokens.Add(new RefreshToken
         {
-            Id = Guid.NewGuid(),
             Token = "revoked-token",
             ExpiresAt = DateTime.UtcNow.AddDays(30),
             CreatedAt = DateTime.UtcNow,
@@ -174,7 +172,6 @@ public class AuthServiceTests : IDisposable
 
         _db.RefreshTokens.AddRange(Enumerable.Range(0, 3).Select(_ => new RefreshToken
         {
-            Id = Guid.NewGuid(),
             Token = Guid.NewGuid().ToString(),
             ExpiresAt = DateTime.UtcNow.AddDays(30),
             CreatedAt = DateTime.UtcNow,
