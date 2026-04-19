@@ -19,5 +19,5 @@ public interface IAdminService
     Task<AdminProductDetailResponse> SetPreviewImageAsync(long productId, long imageId);
 
     Task<PagedResponse<AdminUserResponse>> GetUsersAsync(int page, int pageSize);
-    Task<AdminUserResponse?> GetUserAsync(long id);
+    Task<AdminUserDetailResponse?> GetUserAsync(long id);
 }

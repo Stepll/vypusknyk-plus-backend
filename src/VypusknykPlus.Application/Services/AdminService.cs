@@ -297,21 +297,45 @@ public class AdminService : IAdminService
         };
     }
 
-    public async Task<AdminUserResponse?> GetUserAsync(long id)
+    public async Task<AdminUserDetailResponse?> GetUserAsync(long id)
     {
-        return await _db.Users
+        var user = await _db.Users
             .AsNoTracking()
-            .Where(u => u.Id == id)
-            .Select(u => new AdminUserResponse
-            {
-                Id = u.Id,
-                Email = u.Email,
-                FullName = u.FullName,
-                Phone = u.Phone,
-                CreatedAt = u.CreatedAt,
-                OrdersCount = u.Orders.Count,
-            })
-            .FirstOrDefaultAsync();
+            .Include(u => u.Orders)
+                .ThenInclude(o => o.Items)
+            .Include(u => u.SavedDesigns)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user is null) return null;
+
+        return new AdminUserDetailResponse
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FullName = user.FullName,
+            Phone = user.Phone,
+            CreatedAt = user.CreatedAt,
+            Orders = user.Orders
+                .OrderByDescending(o => o.CreatedAt)
+                .Select(o => new AdminUserOrderSummary
+                {
+                    Id = o.Id,
+                    OrderNumber = o.OrderNumber,
+                    Status = o.Status.ToString(),
+                    Total = o.Total,
+                    ItemsCount = o.Items.Count,
+                    CreatedAt = o.CreatedAt,
+                }).ToList(),
+            SavedDesigns = user.SavedDesigns
+                .Where(d => !d.IsDeleted)
+                .OrderByDescending(d => d.SavedAt)
+                .Select(d => new AdminUserSavedDesign
+                {
+                    Id = d.Id,
+                    DesignName = d.DesignName,
+                    SavedAt = d.SavedAt,
+                }).ToList(),
+        };
     }
 
     private AdminProductDetailResponse MapProductDetail(Product p) => new()
