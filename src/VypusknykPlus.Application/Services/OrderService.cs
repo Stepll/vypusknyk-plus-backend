@@ -41,6 +41,8 @@ public class OrderService : IOrderService
             Name = i.Name,
             Quantity = i.Qty,
             Price = i.Price,
+            NamesData = i.NamesData,
+            RibbonCustomization = i.RibbonCustomization,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         }).ToList();

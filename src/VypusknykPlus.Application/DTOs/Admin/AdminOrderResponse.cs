@@ -1,3 +1,5 @@
+using VypusknykPlus.Application.ValueObjects;
+
 namespace VypusknykPlus.Application.DTOs.Admin;
 
 public class AdminOrderItemResponse
@@ -6,6 +8,8 @@ public class AdminOrderItemResponse
     public string Name { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal Price { get; set; }
+    public NamesData? NamesData { get; set; }
+    public RibbonCustomization? RibbonCustomization { get; set; }
 }
 
 public class AdminOrderResponse

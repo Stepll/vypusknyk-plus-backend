@@ -367,6 +367,8 @@ public class AdminService : IAdminService
             Name = i.Name,
             Quantity = i.Quantity,
             Price = i.Price,
+            NamesData = i.NamesData,
+            RibbonCustomization = i.RibbonCustomization,
         }).ToList(),
     };
 }
