@@ -47,7 +47,7 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
-        if (await _db.Users.AnyAsync(u => u.Email == request.Email))
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == request.Email))
             throw new ArgumentException("Користувач з таким email вже існує");
 
         var user = new User
