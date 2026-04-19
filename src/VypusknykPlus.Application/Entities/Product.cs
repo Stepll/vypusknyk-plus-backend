@@ -22,6 +22,8 @@ public class Product
     public string[] Tags { get; set; } = [];
     public string? ImageKey { get; set; }
 
+    public ICollection<ProductImage> Images { get; set; } = [];
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }

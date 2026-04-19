@@ -51,4 +51,35 @@ public class AdminProductsController : ControllerBase
         await _admin.DeleteProductAsync(id);
         return NoContent();
     }
+
+    [HttpPost("{id:long}/images")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<ActionResult<AdminProductDetailResponse>> UploadImage(long id, IFormFile image)
+    {
+        if (image is null || image.Length == 0)
+            return BadRequest(new { message = "No image file provided." });
+
+        string[] allowed = ["image/jpeg", "image/png", "image/webp"];
+        if (!allowed.Contains(image.ContentType))
+            return BadRequest(new { message = "Only JPEG, PNG, and WebP images are supported." });
+
+        await using var stream = image.OpenReadStream();
+        var result = await _admin.UploadProductImageAsync(id, stream, image.ContentType);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:long}/images/{imageId:long}")]
+    public async Task<ActionResult<AdminProductDetailResponse>> DeleteImage(long id, long imageId)
+    {
+        var result = await _admin.DeleteProductImageAsync(id, imageId);
+        return Ok(result);
+    }
+
+    [HttpPatch("{id:long}/images/{imageId:long}/preview")]
+    public async Task<ActionResult<AdminProductDetailResponse>> SetPreview(long id, long imageId)
+    {
+        var result = await _admin.SetPreviewImageAsync(id, imageId);
+        return Ok(result);
+    }
 }

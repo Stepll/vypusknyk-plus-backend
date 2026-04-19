@@ -3,6 +3,11 @@ namespace VypusknykPlus.Application.Services;
 public interface IImageService
 {
     /// <summary>
+    /// Upload an image stream to an explicit object key. Returns the key.
+    /// </summary>
+    Task<string> UploadAsync(string objectKey, Stream imageStream, string contentType, CancellationToken ct = default);
+
+    /// <summary>
     /// Upload an image stream for a product. Returns the stored object key (e.g. "products/42.jpg").
     /// </summary>
     Task<string> UploadProductImageAsync(long productId, Stream imageStream, string contentType, CancellationToken ct = default);

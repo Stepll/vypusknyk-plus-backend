@@ -97,7 +97,10 @@ public class AdminService : IAdminService
 
     public async Task<AdminProductDetailResponse?> GetProductAsync(long id)
     {
-        var p = await _db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id);
+        var p = await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Images.OrderBy(i => i.CreatedAt))
+            .FirstOrDefaultAsync(p => p.Id == id);
         return p is null ? null : MapProductDetail(p);
     }
 
@@ -161,6 +164,111 @@ public class AdminService : IAdminService
         await _db.SaveChangesAsync();
     }
 
+    public async Task<AdminProductDetailResponse> UploadProductImageAsync(long productId, Stream stream, string contentType)
+    {
+        var product = await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Images)
+            .FirstOrDefaultAsync(p => p.Id == productId)
+            ?? throw new KeyNotFoundException($"Продукт {productId} не знайдено");
+
+        var extension = contentType switch
+        {
+            "image/jpeg" => "jpg",
+            "image/png"  => "png",
+            "image/webp" => "webp",
+            _            => "jpg"
+        };
+        var objectKey = $"products/{productId}/{Guid.NewGuid():N}.{extension}";
+        await _imageService.UploadAsync(objectKey, stream, contentType);
+
+        var isFirst = !product.Images.Any();
+        var image = new ProductImage
+        {
+            ProductId = productId,
+            ImageKey = objectKey,
+            IsPreview = isFirst,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.ProductImages.Add(image);
+
+        if (isFirst)
+        {
+            product.ImageKey = objectKey;
+            product.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return await LoadProductDetailAsync(productId);
+    }
+
+    public async Task<AdminProductDetailResponse> DeleteProductImageAsync(long productId, long imageId)
+    {
+        var product = await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Images)
+            .FirstOrDefaultAsync(p => p.Id == productId)
+            ?? throw new KeyNotFoundException($"Продукт {productId} не знайдено");
+
+        var image = product.Images.FirstOrDefault(i => i.Id == imageId)
+            ?? throw new KeyNotFoundException($"Зображення {imageId} не знайдено");
+
+        await _imageService.DeleteAsync(image.ImageKey);
+        _db.ProductImages.Remove(image);
+
+        if (image.IsPreview)
+        {
+            var next = product.Images
+                .Where(i => i.Id != imageId)
+                .OrderBy(i => i.CreatedAt)
+                .FirstOrDefault();
+
+            if (next is not null)
+            {
+                next.IsPreview = true;
+                product.ImageKey = next.ImageKey;
+            }
+            else
+            {
+                product.ImageKey = null;
+            }
+            product.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return await LoadProductDetailAsync(productId);
+    }
+
+    public async Task<AdminProductDetailResponse> SetPreviewImageAsync(long productId, long imageId)
+    {
+        var product = await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Images)
+            .FirstOrDefaultAsync(p => p.Id == productId)
+            ?? throw new KeyNotFoundException($"Продукт {productId} не знайдено");
+
+        var target = product.Images.FirstOrDefault(i => i.Id == imageId)
+            ?? throw new KeyNotFoundException($"Зображення {imageId} не знайдено");
+
+        foreach (var img in product.Images)
+            img.IsPreview = img.Id == imageId;
+
+        product.ImageKey = target.ImageKey;
+        product.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return await LoadProductDetailAsync(productId);
+    }
+
+    private async Task<AdminProductDetailResponse> LoadProductDetailAsync(long productId)
+    {
+        var p = await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Images.OrderBy(i => i.CreatedAt))
+            .FirstAsync(p => p.Id == productId);
+        return MapProductDetail(p);
+    }
+
     public async Task<PagedResponse<AdminUserResponse>> GetUsersAsync(int page, int pageSize)
     {
         var total = await _db.Users.CountAsync();
@@ -222,6 +330,12 @@ public class AdminService : IAdminService
         IsDeleted = p.IsDeleted,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
+        Images = p.Images.Select(i => new ProductImageResponse
+        {
+            Id = i.Id,
+            ImageUrl = _imageService.GetPublicUrl(i.ImageKey)!,
+            IsPreview = i.IsPreview,
+        }).ToList(),
     };
 
     private static AdminOrderResponse MapOrder(Order o) => new()

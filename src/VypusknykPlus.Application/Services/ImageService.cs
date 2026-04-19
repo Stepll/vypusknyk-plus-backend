@@ -18,6 +18,20 @@ public class ImageService : IImageService
         _logger = logger;
     }
 
+    public async Task<string> UploadAsync(string objectKey, Stream imageStream, string contentType, CancellationToken ct = default)
+    {
+        var putArgs = new PutObjectArgs()
+            .WithBucket(_settings.BucketName)
+            .WithObject(objectKey)
+            .WithStreamData(imageStream)
+            .WithObjectSize(imageStream.Length)
+            .WithContentType(contentType);
+
+        await _minio.PutObjectAsync(putArgs, ct);
+        _logger.LogInformation("Image uploaded: {ObjectKey}", objectKey);
+        return objectKey;
+    }
+
     public async Task<string> UploadProductImageAsync(
         long productId, Stream imageStream, string contentType, CancellationToken ct = default)
     {
@@ -28,21 +42,8 @@ public class ImageService : IImageService
             "image/webp" => "webp",
             _            => "jpg"
         };
-
-        // Deterministic key — uploading a new image automatically replaces the old one
         var objectKey = $"products/{productId}.{extension}";
-
-        var putArgs = new PutObjectArgs()
-            .WithBucket(_settings.BucketName)
-            .WithObject(objectKey)
-            .WithStreamData(imageStream)
-            .WithObjectSize(imageStream.Length)
-            .WithContentType(contentType);
-
-        await _minio.PutObjectAsync(putArgs, ct);
-
-        _logger.LogInformation("Image uploaded for product {ProductId}: {ObjectKey}", productId, objectKey);
-        return objectKey;
+        return await UploadAsync(objectKey, imageStream, contentType, ct);
     }
 
     public async Task DeleteAsync(string objectKey, CancellationToken ct = default)

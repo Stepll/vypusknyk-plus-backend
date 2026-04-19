@@ -14,6 +14,9 @@ public interface IAdminService
     Task<AdminProductDetailResponse> CreateProductAsync(SaveProductRequest request);
     Task<AdminProductDetailResponse> UpdateProductAsync(long id, SaveProductRequest request);
     Task DeleteProductAsync(long id);
+    Task<AdminProductDetailResponse> UploadProductImageAsync(long productId, Stream stream, string contentType);
+    Task<AdminProductDetailResponse> DeleteProductImageAsync(long productId, long imageId);
+    Task<AdminProductDetailResponse> SetPreviewImageAsync(long productId, long imageId);
 
     Task<PagedResponse<AdminUserResponse>> GetUsersAsync(int page, int pageSize);
     Task<AdminUserResponse?> GetUserAsync(long id);
