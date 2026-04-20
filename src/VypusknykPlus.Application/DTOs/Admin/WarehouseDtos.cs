@@ -46,7 +46,7 @@ public class StockProductDetail
     public string CategoryName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public List<StockVariantResponse> Variants { get; set; } = [];
-    public List<StockTransactionResponse> RecentTransactions { get; set; } = [];
+    public List<StockTransactionResponse> Transactions { get; set; } = [];
 }
 
 public class WarehouseStatsResponse

@@ -18,15 +18,15 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
 
     public async Task<WarehouseStatsResponse> GetStatsAsync()
     {
-        var variants = await db.StockVariants.ToListAsync();
+        var stockByVariant = await ComputeStockByVariantAsync();
         var productCount = await db.StockProducts.CountAsync();
         var categoryCount = await db.StockCategories.CountAsync();
 
         return new WarehouseStatsResponse
         {
-            TotalStock = variants.Sum(v => v.CurrentStock),
-            OutOfStockCount = variants.Count(v => v.CurrentStock == 0),
-            LowStockCount = variants.Count(v => v.CurrentStock > 0 && v.CurrentStock < 10),
+            TotalStock = stockByVariant.Values.Sum(),
+            OutOfStockCount = stockByVariant.Values.Count(s => s <= 0),
+            LowStockCount = stockByVariant.Values.Count(s => s > 0 && s < 10),
             CategoryCount = categoryCount,
             ProductCount = productCount,
         };
@@ -57,13 +57,16 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             .Take(query.PageSize)
             .ToListAsync();
 
+        var variantIds = products.SelectMany(p => p.Variants.Select(v => v.Id)).ToList();
+        var stockDict = await ComputeStockForVariantsAsync(variantIds);
+
         var items = products.Select(p =>
         {
             var variants = string.IsNullOrWhiteSpace(query.Material)
                 ? p.Variants.ToList()
                 : p.Variants.Where(v => v.Material == query.Material).ToList();
 
-            var totalStock = variants.Sum(v => v.CurrentStock);
+            var totalStock = variants.Sum(v => stockDict.GetValueOrDefault(v.Id));
             var status = totalStock == 0 ? "out_of_stock"
                 : totalStock < 10 ? "low_stock"
                 : "in_stock";
@@ -100,27 +103,20 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
         var product = await db.StockProducts
             .Include(p => p.Category)
             .Include(p => p.Variants)
-                .ThenInclude(v => v.Transactions.OrderByDescending(t => t.Date).Take(30))
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (product == null) return null;
 
-        var recentTransactions = product.Variants
-            .SelectMany(v => v.Transactions.Select(t => new StockTransactionResponse
-            {
-                Id = t.Id,
-                VariantId = t.VariantId,
-                Material = v.Material,
-                Color = v.Color,
-                Type = t.Type,
-                Quantity = t.Quantity,
-                Date = t.Date.ToString("yyyy-MM-dd"),
-                Note = t.Note,
-                CreatedAt = t.CreatedAt.ToString("o"),
-            }))
+        var variantIds = product.Variants.Select(v => v.Id).ToList();
+        var stockDict = await ComputeStockForVariantsAsync(variantIds);
+
+        var transactions = await db.StockTransactions
+            .Where(t => variantIds.Contains(t.VariantId))
             .OrderByDescending(t => t.Date)
-            .Take(30)
-            .ToList();
+            .ThenByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
+        var variantMap = product.Variants.ToDictionary(v => v.Id);
 
         return new StockProductDetail
         {
@@ -133,9 +129,24 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
                 Id = v.Id,
                 Material = v.Material,
                 Color = v.Color,
-                CurrentStock = v.CurrentStock,
+                CurrentStock = stockDict.GetValueOrDefault(v.Id),
             }).ToList(),
-            RecentTransactions = recentTransactions,
+            Transactions = transactions.Select(t =>
+            {
+                var v = variantMap[t.VariantId];
+                return new StockTransactionResponse
+                {
+                    Id = t.Id,
+                    VariantId = t.VariantId,
+                    Material = v.Material,
+                    Color = v.Color,
+                    Type = t.Type,
+                    Quantity = t.Quantity,
+                    Date = t.Date.ToString("yyyy-MM-dd"),
+                    Note = t.Note,
+                    CreatedAt = t.CreatedAt.ToString("o"),
+                };
+            }).ToList(),
         };
     }
 
@@ -160,15 +171,18 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
                 ProductId = request.ProductId,
                 Material = request.Material,
                 Color = request.Color,
-                CurrentStock = 0,
             };
             db.StockVariants.Add(variant);
             await db.SaveChangesAsync();
         }
 
-        if (request.Type == "outcome" && request.Quantity > variant.CurrentStock)
-            throw new InvalidOperationException(
-                $"Недостатньо товару. На складі: {variant.CurrentStock}, запитано: {request.Quantity}.");
+        if (request.Type == "outcome")
+        {
+            var currentStock = await GetVariantStockAsync(variant.Id);
+            if (request.Quantity > currentStock)
+                throw new InvalidOperationException(
+                    $"Недостатньо товару. На складі: {currentStock}, запитано: {request.Quantity}.");
+        }
 
         if (!DateTime.TryParse(request.Date, out var date))
             date = DateTime.UtcNow;
@@ -184,11 +198,6 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
         };
 
         db.StockTransactions.Add(transaction);
-
-        variant.CurrentStock = request.Type == "income"
-            ? variant.CurrentStock + request.Quantity
-            : variant.CurrentStock - request.Quantity;
-
         await db.SaveChangesAsync();
 
         return new StockTransactionResponse
@@ -203,5 +212,55 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             Note = transaction.Note,
             CreatedAt = transaction.CreatedAt.ToString("o"),
         };
+    }
+
+    private async Task<int> GetVariantStockAsync(long variantId)
+    {
+        var income = await db.StockTransactions
+            .Where(t => t.VariantId == variantId && t.Type == "income")
+            .SumAsync(t => (int?)t.Quantity) ?? 0;
+        var outcome = await db.StockTransactions
+            .Where(t => t.VariantId == variantId && t.Type == "outcome")
+            .SumAsync(t => (int?)t.Quantity) ?? 0;
+        return income - outcome;
+    }
+
+    private async Task<Dictionary<long, int>> ComputeStockForVariantsAsync(List<long> variantIds)
+    {
+        if (variantIds.Count == 0) return [];
+
+        var rows = await db.StockTransactions
+            .Where(t => variantIds.Contains(t.VariantId))
+            .GroupBy(t => new { t.VariantId, t.Type })
+            .Select(g => new { g.Key.VariantId, g.Key.Type, Total = g.Sum(t => t.Quantity) })
+            .ToListAsync();
+
+        return variantIds.ToDictionary(
+            id => id,
+            id =>
+            {
+                var inc = rows.FirstOrDefault(r => r.VariantId == id && r.Type == "income")?.Total ?? 0;
+                var out_ = rows.FirstOrDefault(r => r.VariantId == id && r.Type == "outcome")?.Total ?? 0;
+                return inc - out_;
+            });
+    }
+
+    private async Task<Dictionary<long, int>> ComputeStockByVariantAsync()
+    {
+        var rows = await db.StockTransactions
+            .GroupBy(t => new { t.VariantId, t.Type })
+            .Select(g => new { g.Key.VariantId, g.Key.Type, Total = g.Sum(t => t.Quantity) })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(r => r.VariantId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var inc = g.FirstOrDefault(r => r.Type == "income")?.Total ?? 0;
+                    var out_ = g.FirstOrDefault(r => r.Type == "outcome")?.Total ?? 0;
+                    return inc - out_;
+                });
     }
 }

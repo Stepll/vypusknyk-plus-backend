@@ -6,7 +6,6 @@ public class StockVariant
     public long ProductId { get; set; }
     public string Material { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
-    public int CurrentStock { get; set; }
     public StockProduct Product { get; set; } = null!;
     public ICollection<StockTransaction> Transactions { get; set; } = [];
 }
