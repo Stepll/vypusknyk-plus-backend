@@ -18,6 +18,11 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Admin> Admins => Set<Admin>();
 
+    public DbSet<StockCategory> StockCategories => Set<StockCategory>();
+    public DbSet<StockProduct> StockProducts => Set<StockProduct>();
+    public DbSet<StockVariant> StockVariants => Set<StockVariant>();
+    public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
