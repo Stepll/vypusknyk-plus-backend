@@ -2,191 +2,182 @@
 
 ## Опис проекту
 
-E-commerce платформа для замовлення персоналізованих випускних стрічок, медалей, грамот та аксесуарів для українських шкіл. Бекенд обслуговує React-фронтенд (папка `../Test_project`).
+E-commerce платформа для замовлення персоналізованих випускних стрічок, медалей, грамот та аксесуарів для українських шкіл.
 
 ## Технології
 
 - **.NET 8.0**, ASP.NET Core Web API, C#
 - **PostgreSQL** + Entity Framework Core 8 (Npgsql)
 - **JWT Bearer** автентифікація (BCrypt для хешування паролів)
-- **Swagger/OpenAPI** для документації API
-- Layered architecture: `Api` (контролери, middleware) + `Application` (сервіси, сутності, дані)
+- **MinIO** — S3-compatible object storage для фото продуктів
+- **Serilog** — логування (Console + File)
+- **FluentValidation** — валідація DTO через ActionFilter
+- **Swagger/OpenAPI** для документації
 
 ## Структура проекту
 
 ```
 src/
-├── VypusknykPlus.Api/              # Presentation layer
-│   ├── Controllers/                # AuthController, ProductsController, OrdersController, DesignsController
-│   ├── Middleware/                  # ExceptionHandlingMiddleware
-│   └── Program.cs                  # DI, CORS, JWT, pipeline
+├── VypusknykPlus.Api/
+│   ├── Controllers/
+│   │   ├── AuthController.cs           # login, register, refresh, profile, password, forgot/reset
+│   │   ├── ProductsController.cs       # GET products (filters), GET by id, POST image
+│   │   ├── OrdersController.cs         # POST create, GET user orders, GET by id, guest orders, claim
+│   │   ├── DesignsController.cs        # CRUD збережених дизайнів (JWT)
+│   │   ├── CartController.cs           # GET, POST, PATCH qty, DELETE item/clear
+│   │   ├── AdminAuthController.cs      # POST /admin/auth/login
+│   │   ├── AdminUsersController.cs     # GET /admin/users, GET /admin/users/:id
+│   │   ├── AdminOrdersController.cs    # GET /admin/orders, GET/:id, PATCH status
+│   │   ├── AdminProductsController.cs  # CRUD + images
+│   │   ├── AdminDesignsController.cs   # GET /admin/designs
+│   │   └── AdminAdminsController.cs    # GET, POST, GET/:id, DELETE /admin/admins
+│   ├── Middleware/
+│   │   └── ExceptionHandlingMiddleware.cs  # ArgumentException→400, KeyNotFound→404, Unauthorized→401, else→500
+│   └── Program.cs
 │
-└── VypusknykPlus.Application/      # Business logic layer
-    ├── Entities/                   # User, Product, Order, OrderItem, SavedDesign, CartItem (BaseEntity з soft delete)
-    ├── ValueObjects/               # DeliveryInfo, RecipientInfo, RibbonState, RibbonCustomization, ProductSnapshot, NamesData
-    ├── DTOs/                       # Auth/, Orders/, Products/, Designs/
+└── VypusknykPlus.Application/
+    ├── Entities/
+    │   ├── BaseEntity.cs        # Id (long), CreatedAt, UpdatedAt, IsDeleted
+    │   ├── User.cs              # Email, FullName, Phone, PasswordHash; nav: Orders, SavedDesigns, CartItems
+    │   ├── Admin.cs             # Email, FullName, PasswordHash, LastLoginAt?
+    │   ├── Product.cs           # Name, Description, Price, MinOrder, Category, Color, Tags, ImageKey; nav: Images
+    │   ├── ProductImage.cs      # ProductId, ImageKey, IsPreview
+    │   ├── Order.cs             # OrderNumber, Status, Total, Delivery, Recipient, Payment, IsAnonymous, GuestToken, UserId?
+    │   ├── OrderItem.cs         # Name, Quantity, Price, NamesData (JSONB), RibbonCustomization (JSONB)
+    │   ├── SavedDesign.cs       # DesignName, SavedAt, State (JSONB), UserId
+    │   └── CartItem.cs          # ProductId?, Name, Price, Quantity, UserId
+    ├── Migrations/
+    │   ├── InitialCreate
+    │   ├── AddProductImages
+    │   ├── AddOrderItemPersonalization   # NamesData + RibbonCustomization JSONB на OrderItems
+    │   └── AddAdminLastLoginAt           # LastLoginAt? на Admin
     ├── Data/
-    │   ├── AppDbContext.cs         # DbContext з global query filters (soft delete)
-    │   ├── Configurations/         # Fluent API конфігурації для кожної сутності
-    │   └── Migrations/             # InitialCreate (2026-04-07)
-    └── Services/                   # AuthService, ProductService, OrderService, DesignService + інтерфейси
+    │   ├── AppDbContext.cs       # Global query filters (!IsDeleted) на: User, Order, OrderItem, SavedDesign, CartItem, Product, Admin
+    │   └── Configurations/      # Fluent API конфігурації
+    ├── DTOs/
+    │   ├── Auth/                # LoginRequest, RegisterRequest, AuthResponse, RefreshToken*, UpdateProfile*, ChangePassword*, ForgotPassword*, ResetPassword*
+    │   ├── Admin/
+    │   │   ├── AdminLoginRequest / AdminAuthResponse
+    │   │   ├── AdminOrderResponse / AdminOrderItemResponse / AdminRecipientResponse / AdminDeliveryResponse
+    │   │   ├── AdminProductResponse / AdminProductDetailResponse / ProductImageResponse / SaveProductRequest
+    │   │   ├── AdminUserResponse               # Список юзерів (ordersCount)
+    │   │   ├── AdminUserDetailResponse         # Деталі юзера + orders[] + savedDesigns[]
+    │   │   ├── AdminUserOrderSummary / AdminUserSavedDesign
+    │   │   ├── AdminSavedDesignResponse        # Глобальна таблиця дизайнів з user info
+    │   │   ├── AdminAdminResponse              # Список адмінів
+    │   │   ├── AdminAdminDetailResponse        # Деталі адміна (lastLoginAt)
+    │   │   └── CreateAdminRequest
+    │   └── PagedResponse.cs     # { items, total, page, pageSize }
+    └── Services/
+        ├── IAdminService / AdminService    # Всі admin CRUD операції
+        ├── IAdminAuthService / AdminAuthService  # Admin login (super admin з env vars + DB admins)
+        ├── IAuthService / AuthService      # User auth (login, register, refresh, profile, password, forgot/reset)
+        ├── IProductService / ProductService
+        ├── IOrderService / OrderService    # create, get, guest orders, claim guest orders
+        ├── IDesignService / DesignService
+        ├── ICartService / CartService
+        ├── IImageService / ImageService    # MinIO upload/delete/getPublicUrl
+        └── IEmailService / EmailService    # MailKit SMTP
 ```
+
+## Admin Auth
+
+Два типи адмінів:
+- **Super Admin** — email/пароль з env vars `Admin:Email` / `Admin:Password`, id=0, IsSuperAdmin=true, не в БД
+- **DB Admin** — в таблиці `Admins`, BCrypt, `LastLoginAt` оновлюється при кожному логіні
+
+JWT для адмінів видається з роллю `"Admin"` (claim `ClaimTypes.Role`). Всі `/api/v1/admin/*` ендпоінти захищені `[Authorize(Roles = "Admin")]`.
 
 ## API ендпоінти
 
-| Метод  | Шлях                      | Опис                       | Авторизація |
-|--------|---------------------------|----------------------------|-------------|
-| POST   | /api/v1/auth/login        | Логін                      | -           |
-| POST   | /api/v1/auth/register     | Реєстрація                 | -           |
-| POST   | /api/v1/auth/refresh      | Оновити токен              | -           |
-| POST   | /api/v1/auth/forgot-password | Запит на відновлення     | -           |
-| POST   | /api/v1/auth/reset-password  | Скинути пароль           | -           |
-| PUT    | /api/v1/auth/profile      | Оновити профіль            | JWT         |
-| PUT    | /api/v1/auth/password     | Змінити пароль              | JWT         |
-| GET    | /api/v1/products          | Список продуктів (фільтри) | -           |
-| GET    | /api/v1/products/{id}     | Деталі продукту            | -           |
-| POST   | /api/v1/products/{id}/image | Завантажити зображення   | JWT         |
-| POST   | /api/v1/orders            | Створити замовлення        | -/JWT       |
-| GET    | /api/v1/orders            | Замовлення користувача     | JWT         |
-| GET    | /api/v1/orders/{id}       | Деталі замовлення          | JWT         |
-| GET    | /api/v1/orders/guest/{token} | Замовлення гостя        | -           |
-| POST   | /api/v1/orders/claim      | Прив'язати гостьові замовлення | JWT    |
-| POST   | /api/v1/designs           | Зберегти дизайн            | JWT         |
-| GET    | /api/v1/designs           | Дизайни користувача        | JWT         |
-| PUT    | /api/v1/designs/{id}      | Оновити дизайн             | JWT         |
-| DELETE | /api/v1/designs/{id}      | Видалити дизайн            | JWT         |
-| GET    | /api/v1/cart              | Кошик користувача          | JWT         |
-| POST   | /api/v1/cart              | Додати товар в кошик       | JWT         |
-| PATCH  | /api/v1/cart/{id}         | Оновити кількість          | JWT         |
-| DELETE | /api/v1/cart/{id}         | Видалити з кошика          | JWT         |
-| DELETE | /api/v1/cart              | Очистити кошик             | JWT         |
+### Публічні / User API
+
+| Метод  | Шлях                              | Опис                              |
+|--------|-----------------------------------|-----------------------------------|
+| POST   | /api/v1/auth/login                | Логін юзера                       |
+| POST   | /api/v1/auth/register             | Реєстрація                        |
+| POST   | /api/v1/auth/refresh              | Оновити JWT                       |
+| POST   | /api/v1/auth/forgot-password      | Запит відновлення пароля          |
+| POST   | /api/v1/auth/reset-password       | Скинути пароль                    |
+| PUT    | /api/v1/auth/profile              | Оновити профіль (JWT)             |
+| PUT    | /api/v1/auth/password             | Змінити пароль (JWT)              |
+| GET    | /api/v1/products                  | Список продуктів (фільтри)        |
+| GET    | /api/v1/products/{id}             | Деталі продукту                   |
+| POST   | /api/v1/orders                    | Створити замовлення (-/JWT)       |
+| GET    | /api/v1/orders                    | Замовлення юзера (JWT)            |
+| GET    | /api/v1/orders/{id}               | Деталі замовлення (JWT)           |
+| GET    | /api/v1/orders/guest/{token}      | Замовлення гостя                  |
+| POST   | /api/v1/orders/claim              | Прив'язати гостьові (JWT)         |
+| POST/GET/PUT/DELETE | /api/v1/designs        | CRUD збережених дизайнів (JWT)    |
+| GET/POST/PATCH/DELETE | /api/v1/cart         | Кошик (JWT)                       |
+
+### Admin API (`[Authorize(Roles = "Admin")]`)
+
+| Метод  | Шлях                                                  | Опис                              |
+|--------|-------------------------------------------------------|-----------------------------------|
+| POST   | /api/v1/admin/auth/login                              | Логін адміна                      |
+| GET    | /api/v1/admin/orders                                  | Всі замовлення (paginated)        |
+| GET    | /api/v1/admin/orders/{id}                             | Деталі замовлення                 |
+| PATCH  | /api/v1/admin/orders/{id}/status                      | Оновити статус                    |
+| GET    | /api/v1/admin/products                                | Всі продукти (з IsDeleted)        |
+| GET    | /api/v1/admin/products/{id}                           | Деталі + images[]                 |
+| POST   | /api/v1/admin/products                                | Створити продукт                  |
+| PUT    | /api/v1/admin/products/{id}                           | Оновити продукт                   |
+| DELETE | /api/v1/admin/products/{id}                           | Soft delete                       |
+| POST   | /api/v1/admin/products/{id}/images                    | Завантажити фото (multipart)      |
+| DELETE | /api/v1/admin/products/{id}/images/{imageId}          | Видалити фото                     |
+| PATCH  | /api/v1/admin/products/{id}/images/{imageId}/preview  | Встановити превʼю                 |
+| GET    | /api/v1/admin/users                                   | Всі юзери (paginated)             |
+| GET    | /api/v1/admin/users/{id}                              | Деталі юзера + orders + designs   |
+| GET    | /api/v1/admin/designs                                 | Всі збережені дизайни (paginated) |
+| GET    | /api/v1/admin/admins                                  | Список адмінів (paginated)        |
+| GET    | /api/v1/admin/admins/{id}                             | Деталі адміна                     |
+| POST   | /api/v1/admin/admins                                  | Створити адміна                   |
+| DELETE | /api/v1/admin/admins/{id}                             | Soft delete адміна                |
+
+## Важливі патерни
+
+- **EF Core JSONB**: `OwnsOne(e => e.Field, b => { b.ToJson(); })` — NamesData, RibbonCustomization на OrderItem; RibbonState на SavedDesign
+- **Global query filters**: `HasQueryFilter(e => !e.IsDeleted)` на всіх сутностях. В адмін-сервісах використовувати `IgnoreQueryFilters()` де потрібно бачити soft-deleted записи
+- **Soft delete**: IsDeleted = true + UpdatedAt = UtcNow. Ніколи не видаляти фізично
+- **Middleware order**: `UseSerilogRequestLogging()` ДО `UseMiddleware<ExceptionHandlingMiddleware>()`
+- **Claim guest orders**: `ClaimGuestOrdersAsync` викликається fire-and-forget при логіні/реєстрації юзера
 
 ## Конфігурація
 
-- **БД**: PostgreSQL на `localhost:5432`, база `vypusknyk_plus` (user: postgres/postgres)
-- **JWT**: ключ з env var `Jwt__Key` (dev: `appsettings.Development.json`), expiration 15 хв
-- **CORS**: origins з `Cors__AllowedOrigins` env var або `appsettings.json`
-- **MinIO**: S3-compatible object storage, bucket `products` (public read), env vars `Minio__*`
+- **БД**: `Host=localhost;Port=5432;Database=vypusknyk_plus;Username=postgres;Password=postgres` (dev)
+- **JWT**: `Jwt__Key`, expiration 15 хв (user), 8 год (admin)
+- **Admin**: `Admin:Email`, `Admin:Password` (super admin з env)
+- **CORS**: `Cors__AllowedOrigins`
+- **MinIO**: `Minio__Endpoint`, `Minio__AccessKey`, `Minio__SecretKey`, `MINIO_PUBLIC_ENDPOINT`
+- **Email**: SMTP через `Email__*` (Gmail App Password)
 - **Порт**: HTTP `localhost:5272` (dev), `8080` (Docker)
 
 ## Команди
 
 ```bash
-# Запуск (dev)
+# Запуск
 dotnet run --project src/VypusknykPlus.Api
 
-# Міграції (використовує AppDbContextFactory — не потребує запущеного MinIO/DB)
+# Міграції
 dotnet ef migrations add <Name> --project src/VypusknykPlus.Application --startup-project src/VypusknykPlus.Api
 dotnet ef database update --project src/VypusknykPlus.Application --startup-project src/VypusknykPlus.Api
 
-# Docker
-cp .env.example .env   # заповнити секрети
-docker compose up --build
+# Docker (prod)
+docker buildx build --platform linux/amd64 -t stepll/vypusknyk-plus:latest --push .
+# На сервері: docker compose pull && docker compose up -d
 ```
 
-## Фронтенд (../Test_project)
+## Деплой
 
-- React 19 + TypeScript + Vite
-- MobX (стейт), Ant Design + TailwindCSS (UI), Framer Motion (анімації)
-- API base URL: `http://localhost:5272` (env var `VITE_API_URL`)
-- 15 сторінок: Home, Catalog, ProductPage, Cart, Checkout, RibbonConstructor, ConstructorHub, Auth, Account, OrderDetail, OrderSuccess, Events, About, Contacts, NotFound
-- MobX stores: CartStore (кошик), AuthStore (авторизація + дизайни), ToastStore (сповіщення)
+- Сервер: `vmi3229320` (IP: `75.119.152.4`), Contabo VPS
+- Docker Compose: api + db (PostgreSQL) + minio
+- **Автоміграції**: `MigrateAsync()` в `Program.cs` при старті
+- Nginx: reverse proxy + HTTPS (sslip.io), `client_max_body_size 15m`, `/storage/` → MinIO порт 9000
 
-## Статус реалізації
+## TODO
 
-### Готово
-- [x] Автентифікація (login, register, profile update, password change)
-- [x] JWT токени + BCrypt хешування
-- [x] Сутності та міграції БД (User, Product, Order, OrderItem, SavedDesign, CartItem)
-- [x] Value objects з JSONB зберіганням (RibbonState, NamesData, DeliveryInfo, etc.)
-- [x] Global query filters (soft delete)
-- [x] ExceptionHandlingMiddleware
-- [x] Swagger документація
-- [x] CORS налаштування
-- [x] Контролери з маршрутизацією для всіх ресурсів
-- [x] Serilog (Console + File sinks, request logging, structured logging)
-- [x] FluentValidation (автоматична валідація через ActionFilter, валідатори для всіх request DTOs)
-- [x] Seed data (15 продуктів з фронтенду, міграція SeedProducts)
-- [x] ProductService + Pagination (фільтрація, сортування, пошук, PagedResponse)
-- [x] DesignService (CRUD збережених дизайнів стрічок)
-- [x] CartController + CartService (add, get, update qty, remove, clear)
-- [x] OrderService (create з генерацією OrderNumber, get user orders, get by id)
-- [x] JWT Refresh Tokens (30 днів, rotation, revoke при зміні пароля)
-- [x] Email сервіс (MailKit, SMTP) + Forgot/Reset Password (token 1 год, revoke refresh tokens)
-- [x] Nullable productId для кастомних стрічок — `AddCartItemRequest` і `CreateOrderItemRequest` приймають `int?`; CartService будує snapshot з Name/Price коли productId == null
-- [x] Гостьове замовлення — `Order.UserId` nullable, `IsAnonymous`, `GuestToken`; POST /orders без авторизації; auto-claim по email при логіні/реєстрації; міграція AddGuestOrders
-- [x] Email підтвердження замовлення — `OrderService` надсилає `SendOrderConfirmationEmailAsync` після створення (fire-and-forget)
-- [x] SMTP налаштовано на сервері (Gmail App Password)
-
-### TODO — Рекомендований порядок виконання
-
-Порядок підібраний щоб мінімізувати переробки. Критичні пари що **не можна розривати**: `ProductService + Pagination`, `Email + ForgotPassword`.
-
----
-
-#### Фаза 1 — Фундамент (до будь-якої бізнес-логіки)
-
-- [x] **Логування (Serilog)** — Console + File sinks, request logging, конфігурація через appsettings.json
-- [x] **Валідація DTO (FluentValidation)** — ValidationActionFilter + валідатори для Auth, Orders, Designs
-- [x] **Seed data** — 15 продуктів з фронтенду перенесено через EF Core HasData + міграція SeedProducts
-
----
-
-#### Фаза 2 — Основні фічі (порядок важливий через залежності)
-
-- [x] **ProductService + Pagination** — `GetAllAsync()` з фільтрацією (category, sort, search), `GetByIdAsync()`, `PagedResponse<T>` з `{ items, total, page, pageSize }`
-- [x] **DesignService** — `SaveAsync()`, `GetUserDesignsAsync()`, `UpdateAsync()`, `DeleteAsync()` з soft delete
-- [x] **Cart endpoints** — `CartController` + `CartService`: add, get, update qty, remove, clear; snapshot продукту при додаванні
-- [x] **OrderService** — `CreateAsync()` (генерація OrderNumber "VIP-XXXXXX", розрахунок total, маппінг delivery/payment), `GetUserOrdersAsync()`, `GetByIdAsync()`
-
----
-
-#### Фаза 3 — Розширення Auth
-
-- [x] **JWT refresh tokens** — access 15 хв + refresh 30 днів, token rotation, revoke all on password change, міграція AddRefreshTokens
-- [x] **Email сервіс + Forgot password** — MailKit SMTP, forgot-password (токен 1 год), reset-password, email enumeration protection, order confirmation email готовий
-
----
-
-#### Фаза 4 — Інфраструктура
-
-- [x] **Production конфігурація** — всі секрети через env vars, startup validation, CORS з конфігу, bootstrap logger читає env vars
-- [x] **Product images (MinIO)** — `IImageService` + `ImageService`, bucket auto-init при старті, `POST /api/v1/products/{id}/image`, `Product.ImageKey`, `ProductResponse.ImageUrl`, міграція `AddProductImageKey`
-- [x] **Docker** — multi-stage `Dockerfile`, `docker-compose.yml` (api + db + minio), `.dockerignore`, `.env.example`, `IDesignTimeDbContextFactory`, health checks `/healthz`, auto-migrations при старті
-- [x] **Тести** — xUnit unit тести для AuthService (8 тестів), EF InMemory + Moq, проект `VypusknykPlus.Tests`
-- [x] **CI/CD** — GitHub Actions: CI (build+test на кожен push), Deploy (push до main → Docker Hub → SSH на сервер Contabo)
-
----
-
-#### Фаза 5 — Запуск продукту
-
-- [x] **Підключити фронт до бека** — `VITE_API_URL=https://75.119.152.4.sslip.io` в Vercel env vars; API шар `src/api/{types,products,orders,designs,token}.ts`; Catalog, ProductPage, Checkout, Account, OrderDetail підключені до реального API; CartStore персистується в localStorage
-- [x] **Задеплоїти фронт на Vercel** — `https://vypusknyk-plus-fronend.vercel.app`, автодеплой при push до main; `vercel.json` SPA rewrites
-- [x] **HTTPS без домену** — Nginx reverse proxy + Let's Encrypt для `75.119.152.4.sslip.io`; бек доступний по HTTPS
-- [x] **Налаштувати email** — Gmail SMTP налаштовано в `.env` на сервері (`~/vypusknyk-plus/prod/.env`)
-- [ ] **Домен** — купити домен і прив'язати до сервера (75.119.152.4); оновити Nginx + Let's Encrypt
-- [ ] **Адмінка** — панель для управління замовленнями та продуктами
-
----
-
-#### Відомі обмеження / технічний борг
-
-- Кошик не синхронізується з беком (тільки localStorage) — гость і авторизований користувач мають окремі кошики
-- Зображення продуктів (MinIO) не завантажені — каталог показує кольорові заглушки
-
----
-
-#### Фаза 6 — Критично для бізнесу
-
-- [x] **Конструктор → замовлення** — `productId = null` дозволено в Cart і Order; validator пропускає null; CartService будує snapshot з переданих Name/Price
-- [x] **JWT refresh на фронті** — `client.ts` перехоплює 401, робить refresh, повторює запит; при невдачі dispatch `auth:session-expired` → AuthStore скидає стан
-- [x] **Email (SMTP)** — Gmail App Password налаштовано в `.env` на сервері; підтвердження замовлення надсилається автоматично після створення
-- [x] **Гостьове замовлення** — оформлення без реєстрації; guestToken в localStorage; сторінка `/orders/guest`; auto-claim при логіні
-- [ ] **Зображення продуктів** — завантажити реальні фото через `POST /api/v1/products/{id}/image` (MinIO); оновити `MINIO_PUBLIC_ENDPOINT` в `.env`
-
----
-
-#### Фаза 7 — Зростання
-
-- [ ] **Домен** — купити домен, прив'язати до `75.119.152.4`; оновити Nginx + Let's Encrypt (`certbot --nginx -d yourdomain.com`); замінити `sslip.io` у `VITE_API_URL` на Vercel
-- [ ] **Адмінка** — панель для перегляду/зміни статусу замовлень, управління продуктами (новий розділ або окремий React-додаток з роллю `Admin`)
+- [ ] Деплой бекенду з міграціями `AddProductImages`, `AddOrderItemPersonalization`, `AddAdminLastLoginAt`
+- [ ] CORS: додати admin Vercel URL до `Cors:AllowedOrigins`
+- [ ] Домен: купити домен, оновити Nginx + Let's Encrypt
+- [ ] Зображення продуктів: завантажити реальні фото через admin panel
