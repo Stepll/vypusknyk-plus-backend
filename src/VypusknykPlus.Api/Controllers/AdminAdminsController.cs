@@ -22,4 +22,25 @@ public class AdminAdminsController : ControllerBase
     {
         return Ok(await _admin.GetAdminsAsync(page, pageSize));
     }
+
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<AdminAdminDetailResponse>> GetById(long id)
+    {
+        var admin = await _admin.GetAdminDetailAsync(id);
+        return admin is null ? NotFound() : Ok(admin);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<AdminAdminDetailResponse>> Create([FromBody] CreateAdminRequest request)
+    {
+        var admin = await _admin.CreateAdminAsync(request);
+        return Created(string.Empty, admin);
+    }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id)
+    {
+        await _admin.DeleteAdminAsync(id);
+        return NoContent();
+    }
 }

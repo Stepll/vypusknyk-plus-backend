@@ -338,6 +338,57 @@ public class AdminService : IAdminService
         };
     }
 
+    public async Task<AdminAdminDetailResponse?> GetAdminDetailAsync(long id)
+    {
+        var admin = await _db.Admins
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == id);
+
+        return admin is null ? null : new AdminAdminDetailResponse
+        {
+            Id = admin.Id,
+            Email = admin.Email,
+            FullName = admin.FullName,
+            CreatedAt = admin.CreatedAt,
+            LastLoginAt = admin.LastLoginAt,
+        };
+    }
+
+    public async Task<AdminAdminDetailResponse> CreateAdminAsync(CreateAdminRequest request)
+    {
+        var admin = new Entities.Admin
+        {
+            Email = request.Email,
+            FullName = request.FullName,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        _db.Admins.Add(admin);
+        await _db.SaveChangesAsync();
+
+        return new AdminAdminDetailResponse
+        {
+            Id = admin.Id,
+            Email = admin.Email,
+            FullName = admin.FullName,
+            CreatedAt = admin.CreatedAt,
+            LastLoginAt = null,
+        };
+    }
+
+    public async Task DeleteAdminAsync(long id)
+    {
+        var admin = await _db.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id)
+            ?? throw new KeyNotFoundException($"Адміна {id} не знайдено");
+
+        admin.IsDeleted = true;
+        admin.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<PagedResponse<AdminSavedDesignResponse>> GetSavedDesignsAsync(int page, int pageSize)
     {
         var query = _db.SavedDesigns

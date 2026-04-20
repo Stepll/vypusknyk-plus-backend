@@ -50,6 +50,9 @@ public class AdminAuthService : IAdminAuthService
         if (admin is null || !BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
             throw new UnauthorizedAccessException("Невірний email або пароль");
 
+        admin.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
         return new AdminAuthResponse
         {
             Id = admin.Id,
