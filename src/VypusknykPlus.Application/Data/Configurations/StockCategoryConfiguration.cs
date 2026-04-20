@@ -12,19 +12,17 @@ public class StockCategoryConfiguration : IEntityTypeConfiguration<StockCategory
         builder.Property(c => c.Id).ValueGeneratedNever();
         builder.Property(c => c.Name).IsRequired().HasMaxLength(100);
 
-        builder.HasMany(c => c.Products)
-            .WithOne(p => p.Category)
-            .HasForeignKey(p => p.CategoryId)
+        builder.HasMany(c => c.Subcategories)
+            .WithOne(s => s.Category)
+            .HasForeignKey(s => s.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasData(
-            new StockCategory { Id = 1, Name = "Випускник 11 клас", Order = 1 },
-            new StockCategory { Id = 2, Name = "Випускник 9 клас", Order = 2 },
-            new StockCategory { Id = 3, Name = "Вчителі та педагоги", Order = 3 },
-            new StockCategory { Id = 4, Name = "Першокласник", Order = 4 },
-            new StockCategory { Id = 5, Name = "Молодша школа", Order = 5 },
-            new StockCategory { Id = 6, Name = "Дошкільні заклади", Order = 6 },
-            new StockCategory { Id = 7, Name = "Інші", Order = 7 }
+            new StockCategory { Id = 1, Name = "Стрічки", Order = 1 },
+            new StockCategory { Id = 2, Name = "Дзвоники", Order = 2 },
+            new StockCategory { Id = 3, Name = "Прапорці та прапори", Order = 3 },
+            new StockCategory { Id = 4, Name = "Нагороди та церемонія", Order = 4 },
+            new StockCategory { Id = 5, Name = "Інше", Order = 5 }
         );
     }
 }

@@ -13,28 +13,35 @@ public class AdminWarehouseController(IWarehouseService warehouse) : ControllerB
 {
     [HttpGet("categories")]
     public async Task<ActionResult<List<StockCategoryResponse>>> GetCategories()
-    {
-        return Ok(await warehouse.GetCategoriesAsync());
-    }
+        => Ok(await warehouse.GetCategoriesAsync());
+
+    [HttpGet("subcategories")]
+    public async Task<ActionResult<List<StockSubcategoryResponse>>> GetSubcategories(
+        [FromQuery] long? categoryId)
+        => Ok(await warehouse.GetSubcategoriesAsync(categoryId));
 
     [HttpGet("stats")]
     public async Task<ActionResult<WarehouseStatsResponse>> GetStats()
-    {
-        return Ok(await warehouse.GetStatsAsync());
-    }
+        => Ok(await warehouse.GetStatsAsync());
 
     [HttpGet("products")]
     public async Task<ActionResult<PagedResponse<StockProductSummary>>> GetProducts(
         [FromQuery] WarehouseProductsQuery query)
-    {
-        return Ok(await warehouse.GetProductsAsync(query));
-    }
+        => Ok(await warehouse.GetProductsAsync(query));
 
     [HttpGet("products/{id:long}")]
     public async Task<ActionResult<StockProductDetail>> GetProduct(long id)
     {
         var product = await warehouse.GetProductDetailAsync(id);
         return product is null ? NotFound() : Ok(product);
+    }
+
+    [HttpPost("products")]
+    public async Task<ActionResult<StockProductSummary>> CreateProduct(
+        [FromBody] CreateStockProductRequest request)
+    {
+        var result = await warehouse.CreateProductAsync(request);
+        return Created(string.Empty, result);
     }
 
     [HttpPost("transactions")]

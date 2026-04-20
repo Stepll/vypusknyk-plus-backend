@@ -16,6 +16,20 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             .ToListAsync();
     }
 
+    public async Task<List<StockSubcategoryResponse>> GetSubcategoriesAsync(long? categoryId)
+    {
+        var q = db.StockSubcategories.AsQueryable();
+        if (categoryId.HasValue)
+            q = q.Where(s => s.CategoryId == categoryId.Value);
+        return await q
+            .OrderBy(s => s.Order)
+            .Select(s => new StockSubcategoryResponse
+            {
+                Id = s.Id, CategoryId = s.CategoryId, Name = s.Name, Order = s.Order,
+            })
+            .ToListAsync();
+    }
+
     public async Task<WarehouseStatsResponse> GetStatsAsync()
     {
         var stockByVariant = await ComputeStockByVariantAsync();
@@ -35,15 +49,22 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
     public async Task<PagedResponse<StockProductSummary>> GetProductsAsync(WarehouseProductsQuery query)
     {
         var q = db.StockProducts
-            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+                .ThenInclude(s => s.Category)
             .Include(p => p.Variants)
             .AsQueryable();
 
         if (query.CategoryId.HasValue)
-            q = q.Where(p => p.CategoryId == query.CategoryId.Value);
+            q = q.Where(p => p.Subcategory.CategoryId == query.CategoryId.Value);
+
+        if (query.SubcategoryId.HasValue)
+            q = q.Where(p => p.SubcategoryId == query.SubcategoryId.Value);
 
         if (!string.IsNullOrWhiteSpace(query.Material))
             q = q.Where(p => p.Variants.Any(v => v.Material == query.Material));
+
+        if (!string.IsNullOrWhiteSpace(query.Color))
+            q = q.Where(p => p.Variants.Any(v => v.Color == query.Color));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
             q = q.Where(p => p.Name.Contains(query.Search));
@@ -51,7 +72,8 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
         var total = await q.CountAsync();
 
         var products = await q
-            .OrderBy(p => p.Category.Order)
+            .OrderBy(p => p.Subcategory.Category.Order)
+            .ThenBy(p => p.Subcategory.Order)
             .ThenBy(p => p.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
@@ -77,9 +99,13 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             return new StockProductSummary
             {
                 Id = p.Id,
-                CategoryId = p.CategoryId,
-                CategoryName = p.Category.Name,
+                SubcategoryId = p.SubcategoryId,
+                SubcategoryName = p.Subcategory.Name,
+                CategoryId = p.Subcategory.CategoryId,
+                CategoryName = p.Subcategory.Category.Name,
                 Name = p.Name,
+                HasColor = p.HasColor,
+                HasMaterial = p.HasMaterial,
                 TotalStock = totalStock,
                 VariantCount = variants.Count,
                 Status = status,
@@ -101,7 +127,8 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
     public async Task<StockProductDetail?> GetProductDetailAsync(long id)
     {
         var product = await db.StockProducts
-            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+                .ThenInclude(s => s.Category)
             .Include(p => p.Variants)
             .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -121,9 +148,13 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
         return new StockProductDetail
         {
             Id = product.Id,
-            CategoryId = product.CategoryId,
-            CategoryName = product.Category.Name,
+            SubcategoryId = product.SubcategoryId,
+            SubcategoryName = product.Subcategory.Name,
+            CategoryId = product.Subcategory.CategoryId,
+            CategoryName = product.Subcategory.Category.Name,
             Name = product.Name,
+            HasColor = product.HasColor,
+            HasMaterial = product.HasMaterial,
             Variants = product.Variants.Select(v => new StockVariantResponse
             {
                 Id = v.Id,
@@ -211,6 +242,41 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             Date = transaction.Date.ToString("yyyy-MM-dd"),
             Note = transaction.Note,
             CreatedAt = transaction.CreatedAt.ToString("o"),
+        };
+    }
+
+    public async Task<StockProductSummary> CreateProductAsync(CreateStockProductRequest request)
+    {
+        var subcategory = await db.StockSubcategories
+            .Include(s => s.Category)
+            .FirstOrDefaultAsync(s => s.Id == request.SubcategoryId)
+            ?? throw new KeyNotFoundException($"Підкатегорію {request.SubcategoryId} не знайдено.");
+
+        var product = new StockProduct
+        {
+            SubcategoryId = request.SubcategoryId,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim(),
+            HasColor = request.HasColor,
+            HasMaterial = request.HasMaterial,
+        };
+
+        db.StockProducts.Add(product);
+        await db.SaveChangesAsync();
+
+        return new StockProductSummary
+        {
+            Id = product.Id,
+            SubcategoryId = product.SubcategoryId,
+            SubcategoryName = subcategory.Name,
+            CategoryId = subcategory.CategoryId,
+            CategoryName = subcategory.Category.Name,
+            Name = product.Name,
+            HasColor = product.HasColor,
+            HasMaterial = product.HasMaterial,
+            TotalStock = 0,
+            VariantCount = 0,
+            Status = "out_of_stock",
         };
     }
 

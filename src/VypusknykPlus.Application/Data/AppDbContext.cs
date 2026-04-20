@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Admin> Admins => Set<Admin>();
 
     public DbSet<StockCategory> StockCategories => Set<StockCategory>();
+    public DbSet<StockSubcategory> StockSubcategories => Set<StockSubcategory>();
     public DbSet<StockProduct> StockProducts => Set<StockProduct>();
     public DbSet<StockVariant> StockVariants => Set<StockVariant>();
     public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();

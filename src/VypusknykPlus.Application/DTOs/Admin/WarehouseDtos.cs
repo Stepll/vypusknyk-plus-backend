@@ -7,12 +7,24 @@ public class StockCategoryResponse
     public int Order { get; set; }
 }
 
-public class StockProductSummary
+public class StockSubcategoryResponse
 {
     public long Id { get; set; }
     public long CategoryId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Order { get; set; }
+}
+
+public class StockProductSummary
+{
+    public long Id { get; set; }
+    public long SubcategoryId { get; set; }
+    public string SubcategoryName { get; set; } = string.Empty;
+    public long CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public bool HasColor { get; set; }
+    public bool HasMaterial { get; set; }
     public int TotalStock { get; set; }
     public int VariantCount { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -42,9 +54,13 @@ public class StockTransactionResponse
 public class StockProductDetail
 {
     public long Id { get; set; }
+    public long SubcategoryId { get; set; }
+    public string SubcategoryName { get; set; } = string.Empty;
     public long CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public bool HasColor { get; set; }
+    public bool HasMaterial { get; set; }
     public List<StockVariantResponse> Variants { get; set; } = [];
     public List<StockTransactionResponse> Transactions { get; set; } = [];
 }
@@ -69,12 +85,23 @@ public class CreateStockTransactionRequest
     public string Note { get; set; } = string.Empty;
 }
 
+public class CreateStockProductRequest
+{
+    public long SubcategoryId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool HasColor { get; set; }
+    public bool HasMaterial { get; set; }
+}
+
 public class WarehouseProductsQuery
 {
     public long? CategoryId { get; set; }
+    public long? SubcategoryId { get; set; }
     public string? Material { get; set; }
     public string? Status { get; set; }
     public string? Search { get; set; }
+    public string? Color { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
 }
