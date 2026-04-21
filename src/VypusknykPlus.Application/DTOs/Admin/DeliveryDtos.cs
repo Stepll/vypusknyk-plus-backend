@@ -38,6 +38,15 @@ public class DeliverySummary
     public string CreatedAt { get; set; } = string.Empty;
 }
 
+public class ReceiveTransactionInfo
+{
+    public long Id { get; set; }
+    public int Quantity { get; set; }
+    public string Date { get; set; } = string.Empty;
+    public string Note { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+}
+
 public class DeliveryItemResponse
 {
     public long Id { get; set; }
@@ -53,6 +62,7 @@ public class DeliveryItemResponse
     public int ExpectedQty { get; set; }
     public int ReceivedQty { get; set; }
     public string? ReceivedAt { get; set; }
+    public List<ReceiveTransactionInfo> ReceiveHistory { get; set; } = [];
 }
 
 public class DeliveryDetail

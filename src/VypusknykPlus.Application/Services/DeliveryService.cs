@@ -103,6 +103,8 @@ public class DeliveryService(AppDbContext db) : IDeliveryService
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Subcategory)
                         .ThenInclude(s => s.Category)
+            .Include(d => d.Items)
+                .ThenInclude(i => i.Transactions)
             .FirstOrDefaultAsync(d => d.Id == id);
 
         return delivery is null ? null : MapToDetail(delivery);
@@ -305,5 +307,15 @@ public class DeliveryService(AppDbContext db) : IDeliveryService
         ExpectedQty = i.ExpectedQty,
         ReceivedQty = i.ReceivedQty,
         ReceivedAt = i.ReceivedAt?.ToString("yyyy-MM-dd"),
+        ReceiveHistory = i.Transactions
+            .OrderByDescending(t => t.Date)
+            .Select(t => new ReceiveTransactionInfo
+            {
+                Id = t.Id,
+                Quantity = t.Quantity,
+                Date = t.Date.ToString("yyyy-MM-dd"),
+                Note = t.Note,
+                CreatedAt = t.CreatedAt.ToString("o"),
+            }).ToList(),
     };
 }
