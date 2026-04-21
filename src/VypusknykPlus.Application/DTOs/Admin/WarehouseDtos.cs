@@ -44,6 +44,9 @@ public class StockTransactionResponse
     public long VariantId { get; set; }
     public long? DeliveryItemId { get; set; }
     public long? DeliveryId { get; set; }
+    public long? OrderId { get; set; }
+    public string? OrderNumber { get; set; }
+    public string? OrderCreatedAt { get; set; }
     public string Material { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
@@ -85,6 +88,7 @@ public class CreateStockTransactionRequest
     public int Quantity { get; set; }
     public string Date { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;
+    public long? OrderId { get; set; }
 }
 
 public class CreateStockProductRequest

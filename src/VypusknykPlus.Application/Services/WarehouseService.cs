@@ -155,6 +155,18 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
                 .Where(i => deliveryItemIds.Contains(i.Id))
                 .ToDictionaryAsync(i => i.Id, i => i.DeliveryId);
 
+        var orderIds = transactions
+            .Where(t => t.OrderId.HasValue)
+            .Select(t => t.OrderId!.Value)
+            .Distinct()
+            .ToList();
+
+        var orderById = orderIds.Count == 0
+            ? new Dictionary<long, Order>()
+            : await db.Orders.IgnoreQueryFilters()
+                .Where(o => orderIds.Contains(o.Id))
+                .ToDictionaryAsync(o => o.Id);
+
         var variantMap = product.Variants.ToDictionary(v => v.Id);
 
         return new StockProductDetail
@@ -183,6 +195,9 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
                     VariantId = t.VariantId,
                     DeliveryItemId = t.DeliveryItemId,
                     DeliveryId = t.DeliveryItemId.HasValue && deliveryIdByItemId.TryGetValue(t.DeliveryItemId.Value, out var did) ? did : null,
+                    OrderId = t.OrderId,
+                    OrderNumber = t.OrderId.HasValue && orderById.TryGetValue(t.OrderId.Value, out var ord) ? ord.OrderNumber : null,
+                    OrderCreatedAt = t.OrderId.HasValue && orderById.TryGetValue(t.OrderId.Value, out var ord2) ? ord2.CreatedAt.ToString("yyyy-MM-dd") : null,
                     Material = v.Material,
                     Color = v.Color,
                     Type = t.Type,
@@ -232,9 +247,15 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
         if (!DateTime.TryParse(request.Date, out var date))
             date = DateTime.UtcNow;
 
+        Order? order = null;
+        if (request.OrderId.HasValue)
+            order = await db.Orders.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Id == request.OrderId.Value);
+
         var transaction = new StockTransaction
         {
             VariantId = variant.Id,
+            OrderId = request.OrderId,
             Type = request.Type,
             Quantity = request.Quantity,
             Date = DateTime.SpecifyKind(date, DateTimeKind.Utc),
@@ -250,6 +271,9 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             Id = transaction.Id,
             VariantId = variant.Id,
             DeliveryItemId = null,
+            OrderId = order?.Id,
+            OrderNumber = order?.OrderNumber,
+            OrderCreatedAt = order?.CreatedAt.ToString("yyyy-MM-dd"),
             Material = variant.Material,
             Color = variant.Color,
             Type = transaction.Type,

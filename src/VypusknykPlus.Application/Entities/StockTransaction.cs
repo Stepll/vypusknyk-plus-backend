@@ -10,6 +10,8 @@ public class StockTransaction
     public DateTime Date { get; set; }
     public string Note { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public long? OrderId { get; set; }
     public StockVariant Variant { get; set; } = null!;
     public DeliveryItem? DeliveryItem { get; set; }
+    public Order? Order { get; set; }
 }
