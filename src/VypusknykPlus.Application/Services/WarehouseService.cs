@@ -143,6 +143,18 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
             .ThenByDescending(t => t.CreatedAt)
             .ToListAsync();
 
+        var deliveryItemIds = transactions
+            .Where(t => t.DeliveryItemId.HasValue)
+            .Select(t => t.DeliveryItemId!.Value)
+            .Distinct()
+            .ToList();
+
+        var deliveryIdByItemId = deliveryItemIds.Count == 0
+            ? new Dictionary<long, long>()
+            : await db.DeliveryItems.IgnoreQueryFilters()
+                .Where(i => deliveryItemIds.Contains(i.Id))
+                .ToDictionaryAsync(i => i.Id, i => i.DeliveryId);
+
         var variantMap = product.Variants.ToDictionary(v => v.Id);
 
         return new StockProductDetail
@@ -170,6 +182,7 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
                     Id = t.Id,
                     VariantId = t.VariantId,
                     DeliveryItemId = t.DeliveryItemId,
+                    DeliveryId = t.DeliveryItemId.HasValue && deliveryIdByItemId.TryGetValue(t.DeliveryItemId.Value, out var did) ? did : null,
                     Material = v.Material,
                     Color = v.Color,
                     Type = t.Type,

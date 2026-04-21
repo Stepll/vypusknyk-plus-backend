@@ -43,6 +43,7 @@ public class StockTransactionResponse
     public long Id { get; set; }
     public long VariantId { get; set; }
     public long? DeliveryItemId { get; set; }
+    public long? DeliveryId { get; set; }
     public string Material { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;

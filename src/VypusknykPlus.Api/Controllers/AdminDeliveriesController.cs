@@ -41,6 +41,6 @@ public class AdminDeliveriesController(IDeliveryService deliveries) : Controller
     public async Task<IActionResult> ReceiveAll(long deliveryId, [FromBody] ReceiveAllRequest request)
     {
         await deliveries.ReceiveAllAsync(deliveryId, request);
-        return Ok();
+        return NoContent();
     }
 }

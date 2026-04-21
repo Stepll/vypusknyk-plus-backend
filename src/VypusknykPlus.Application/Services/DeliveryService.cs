@@ -152,14 +152,19 @@ public class DeliveryService(AppDbContext db) : IDeliveryService
     public async Task<DeliveryItemResponse> ReceiveItemAsync(
         long deliveryId, long itemId, ReceiveDeliveryItemRequest request)
     {
+        var delivery = await db.Deliveries
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(d => d.Id == deliveryId)
+            ?? throw new KeyNotFoundException("Поставку не знайдено.");
+
+        if (delivery.IsDeleted)
+            throw new InvalidOperationException("Поставку видалено.");
+
         var item = await db.DeliveryItems
-            .Include(i => i.Delivery)
             .Include(i => i.Product).ThenInclude(p => p.Subcategory).ThenInclude(s => s.Category)
+            .Include(i => i.Transactions)
             .FirstOrDefaultAsync(i => i.Id == itemId && i.DeliveryId == deliveryId)
             ?? throw new KeyNotFoundException("Позицію не знайдено.");
-
-        if (item.Delivery.IsDeleted)
-            throw new InvalidOperationException("Поставку видалено.");
 
         var remaining = item.ExpectedQty - item.ReceivedQty;
         if (remaining <= 0)
@@ -173,22 +178,26 @@ public class DeliveryService(AppDbContext db) : IDeliveryService
         if (!DateTime.TryParse(request.Date, out var date))
             date = DateTime.UtcNow;
 
-        db.StockTransactions.Add(new StockTransaction
+        var transaction = new StockTransaction
         {
             VariantId = variant.Id,
             DeliveryItemId = item.Id,
             Type = "income",
             Quantity = request.Quantity,
             Date = DateTime.SpecifyKind(date, DateTimeKind.Utc),
-            Note = request.Note ?? $"Поставка {item.Delivery.Number}",
+            Note = request.Note ?? $"Поставка {delivery.Number}",
             CreatedAt = DateTime.UtcNow,
-        });
+        };
+        db.StockTransactions.Add(transaction);
 
         item.ReceivedQty += request.Quantity;
         item.ReceivedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
         await UpdateDeliveryStatusAsync(deliveryId);
+
+        // Refresh item navigation to include the new transaction
+        await db.Entry(item).Collection(i => i.Transactions).LoadAsync();
 
         return MapItemToResponse(item);
     }
