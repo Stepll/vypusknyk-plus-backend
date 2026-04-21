@@ -24,6 +24,10 @@ public class AppDbContext : DbContext
     public DbSet<StockVariant> StockVariants => Set<StockVariant>();
     public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();
 
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<Delivery> Deliveries => Set<Delivery>();
+    public DbSet<DeliveryItem> DeliveryItems => Set<DeliveryItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -37,5 +41,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CartItem>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Product>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Admin>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<Supplier>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<Delivery>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

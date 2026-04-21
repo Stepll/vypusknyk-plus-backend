@@ -15,5 +15,6 @@ public class StockTransactionConfiguration : IEntityTypeConfiguration<StockTrans
 
         builder.HasIndex(t => t.VariantId);
         builder.HasIndex(t => t.Date);
+        builder.HasIndex(t => t.DeliveryItemId);
     }
 }

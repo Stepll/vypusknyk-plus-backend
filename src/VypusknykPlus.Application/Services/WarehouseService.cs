@@ -169,6 +169,7 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
                 {
                     Id = t.Id,
                     VariantId = t.VariantId,
+                    DeliveryItemId = t.DeliveryItemId,
                     Material = v.Material,
                     Color = v.Color,
                     Type = t.Type,
@@ -235,6 +236,7 @@ public class WarehouseService(AppDbContext db) : IWarehouseService
         {
             Id = transaction.Id,
             VariantId = variant.Id,
+            DeliveryItemId = null,
             Material = variant.Material,
             Color = variant.Color,
             Type = transaction.Type,
