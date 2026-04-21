@@ -6,6 +6,9 @@ namespace VypusknykPlus.Application.Services;
 public interface IDeliveryService
 {
     Task<List<SupplierResponse>> GetSuppliersAsync();
+    Task<SupplierResponse> CreateSupplierAsync(SaveSupplierRequest request);
+    Task<SupplierResponse> UpdateSupplierAsync(long id, SaveSupplierRequest request);
+    Task DeleteSupplierAsync(long id);
     Task<PagedResponse<DeliverySummary>> GetDeliveriesAsync(DeliveryQuery query);
     Task<DeliveryDetail?> GetDeliveryDetailAsync(long id);
     Task<DeliveryDetail> CreateDeliveryAsync(CreateDeliveryRequest request);

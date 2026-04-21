@@ -11,8 +11,55 @@ public class DeliveryService(AppDbContext db) : IDeliveryService
     public async Task<List<SupplierResponse>> GetSuppliersAsync() =>
         await db.Suppliers
             .OrderBy(s => s.Name)
-            .Select(s => new SupplierResponse { Id = s.Id, Name = s.Name, Phone = s.Phone, Address = s.Address })
+            .Select(s => MapSupplier(s))
             .ToListAsync();
+
+    public async Task<SupplierResponse> CreateSupplierAsync(SaveSupplierRequest request)
+    {
+        var supplier = new Supplier
+        {
+            Name = request.Name.Trim(),
+            ContactPerson = request.ContactPerson?.Trim(),
+            Phone = request.Phone?.Trim(),
+            Email = request.Email?.Trim(),
+            TaxId = request.TaxId?.Trim(),
+            Address = request.Address?.Trim(),
+            Notes = request.Notes?.Trim(),
+        };
+        db.Suppliers.Add(supplier);
+        await db.SaveChangesAsync();
+        return MapSupplier(supplier);
+    }
+
+    public async Task<SupplierResponse> UpdateSupplierAsync(long id, SaveSupplierRequest request)
+    {
+        var supplier = await db.Suppliers.FindAsync(id)
+            ?? throw new KeyNotFoundException("Постачальника не знайдено.");
+        supplier.Name = request.Name.Trim();
+        supplier.ContactPerson = request.ContactPerson?.Trim();
+        supplier.Phone = request.Phone?.Trim();
+        supplier.Email = request.Email?.Trim();
+        supplier.TaxId = request.TaxId?.Trim();
+        supplier.Address = request.Address?.Trim();
+        supplier.Notes = request.Notes?.Trim();
+        await db.SaveChangesAsync();
+        return MapSupplier(supplier);
+    }
+
+    public async Task DeleteSupplierAsync(long id)
+    {
+        var supplier = await db.Suppliers.FindAsync(id)
+            ?? throw new KeyNotFoundException("Постачальника не знайдено.");
+        supplier.IsDeleted = true;
+        await db.SaveChangesAsync();
+    }
+
+    private static SupplierResponse MapSupplier(Supplier s) => new()
+    {
+        Id = s.Id, Name = s.Name, ContactPerson = s.ContactPerson,
+        Phone = s.Phone, Email = s.Email, TaxId = s.TaxId,
+        Address = s.Address, Notes = s.Notes,
+    };
 
     public async Task<PagedResponse<DeliverySummary>> GetDeliveriesAsync(DeliveryQuery query)
     {
