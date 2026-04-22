@@ -91,6 +91,7 @@ builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IDeliveryService, DeliveryService>();
 builder.Services.AddScoped<IAdminRoleService, AdminRoleService>();
+builder.Services.AddScoped<IInfoPageService, InfoPageService>();
 
 // --- CORS ---
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -179,6 +180,8 @@ using (var scope = app.Services.CreateScope())
         startupLogger.LogInformation("Applying pending EF Core migrations...");
         await db.Database.MigrateAsync();
         startupLogger.LogInformation("Migrations applied successfully");
+        await InfoPageSeeder.SeedAsync(db);
+        startupLogger.LogInformation("Info page seed completed");
 
         startupLogger.LogInformation("Ensuring MinIO bucket exists...");
         await imageService.EnsureBucketAsync();

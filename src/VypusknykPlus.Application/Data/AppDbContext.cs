@@ -29,6 +29,8 @@ public class AppDbContext : DbContext
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<DeliveryItem> DeliveryItems => Set<DeliveryItem>();
 
+    public DbSet<InfoPage> InfoPages => Set<InfoPage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -45,5 +47,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Supplier>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Delivery>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Role>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<InfoPage>().HasQueryFilter(e => !e.IsDeleted);
     }
 }
