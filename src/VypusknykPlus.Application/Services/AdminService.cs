@@ -3,6 +3,7 @@ using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.DTOs;
 using VypusknykPlus.Application.DTOs.Admin;
 using VypusknykPlus.Application.Entities;
+using Role = VypusknykPlus.Application.Entities.Role;
 
 namespace VypusknykPlus.Application.Services;
 
@@ -342,6 +343,7 @@ public class AdminService : IAdminService
     {
         var admin = await _db.Admins
             .IgnoreQueryFilters()
+            .Include(a => a.Role)
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id);
 
@@ -352,6 +354,7 @@ public class AdminService : IAdminService
             FullName = admin.FullName,
             CreatedAt = admin.CreatedAt,
             LastLoginAt = admin.LastLoginAt,
+            Role = MapRoleInfo(admin.Role),
         };
     }
 
@@ -362,12 +365,17 @@ public class AdminService : IAdminService
             Email = request.Email,
             FullName = request.FullName,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            RoleId = request.RoleId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
 
         _db.Admins.Add(admin);
         await _db.SaveChangesAsync();
+
+        var role = request.RoleId.HasValue
+            ? await _db.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == request.RoleId)
+            : null;
 
         return new AdminAdminDetailResponse
         {
@@ -376,6 +384,7 @@ public class AdminService : IAdminService
             FullName = admin.FullName,
             CreatedAt = admin.CreatedAt,
             LastLoginAt = null,
+            Role = MapRoleInfo(role),
         };
     }
 
@@ -424,25 +433,25 @@ public class AdminService : IAdminService
 
     public async Task<PagedResponse<AdminAdminResponse>> GetAdminsAsync(int page, int pageSize)
     {
-        var query = _db.Admins.IgnoreQueryFilters().AsNoTracking();
+        var query = _db.Admins.IgnoreQueryFilters().Include(a => a.Role).AsNoTracking();
 
         var total = await query.CountAsync();
         var items = await query
             .OrderBy(a => a.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(a => new AdminAdminResponse
+            .ToListAsync();
+
+        return new PagedResponse<AdminAdminResponse>
+        {
+            Items = items.Select(a => new AdminAdminResponse
             {
                 Id = a.Id,
                 Email = a.Email,
                 FullName = a.FullName,
                 CreatedAt = a.CreatedAt,
-            })
-            .ToListAsync();
-
-        return new PagedResponse<AdminAdminResponse>
-        {
-            Items = items,
+                Role = MapRoleInfo(a.Role),
+            }).ToList(),
             Total = total,
             Page = page,
             PageSize = pageSize,
@@ -471,6 +480,15 @@ public class AdminService : IAdminService
             ImageUrl = _imageService.GetPublicUrl(i.ImageKey)!,
             IsPreview = i.IsPreview,
         }).ToList(),
+    };
+
+    private static RoleInfo? MapRoleInfo(Role? r) => r is null ? null : new RoleInfo
+    {
+        Id = r.Id,
+        Name = r.Name,
+        Color = r.Color,
+        IsSuperAdmin = r.IsSuperAdmin,
+        Pages = r.Pages,
     };
 
     private static AdminOrderResponse MapOrder(Order o) => new()

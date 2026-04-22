@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Admin> Admins => Set<Admin>();
+    public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<StockCategory> StockCategories => Set<StockCategory>();
     public DbSet<StockSubcategory> StockSubcategories => Set<StockSubcategory>();
@@ -43,5 +44,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Admin>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Supplier>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Delivery>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<Role>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

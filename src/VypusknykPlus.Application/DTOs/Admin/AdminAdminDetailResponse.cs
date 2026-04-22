@@ -7,4 +7,5 @@ public class AdminAdminDetailResponse
     public string FullName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    public RoleInfo? Role { get; set; }
 }

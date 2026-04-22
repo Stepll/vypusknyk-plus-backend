@@ -7,4 +7,5 @@ public class AdminAuthResponse
     public string FullName { get; set; } = string.Empty;
     public bool IsSuperAdmin { get; set; }
     public string Token { get; set; } = string.Empty;
+    public RoleInfo? Role { get; set; }
 }

@@ -1,12 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.DTOs.Admin;
+using VypusknykPlus.Application.Entities;
 
 namespace VypusknykPlus.Application.Services;
 
@@ -40,12 +42,14 @@ public class AdminAuthService : IAdminAuthService
                 Email = _superAdminEmail,
                 FullName = "Super Admin",
                 IsSuperAdmin = true,
-                Token = GenerateToken(superAdminId, _superAdminEmail, "Super Admin"),
+                Token = GenerateToken(superAdminId, _superAdminEmail, "Super Admin", null, isSuperAdmin: true),
             };
         }
 
         // DB admin
-        var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Email == request.Email);
+        var admin = await _db.Admins
+            .Include(a => a.Role)
+            .FirstOrDefaultAsync(a => a.Email == request.Email);
 
         if (admin is null || !BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
             throw new UnauthorizedAccessException("Невірний email або пароль");
@@ -53,28 +57,40 @@ public class AdminAuthService : IAdminAuthService
         admin.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
+        var isSuperAdmin = admin.Role?.IsSuperAdmin ?? false;
+
         return new AdminAuthResponse
         {
             Id = admin.Id,
             Email = admin.Email,
             FullName = admin.FullName,
-            IsSuperAdmin = false,
-            Token = GenerateToken(admin.Id, admin.Email, admin.FullName),
+            IsSuperAdmin = isSuperAdmin,
+            Token = GenerateToken(admin.Id, admin.Email, admin.FullName, admin.Role, isSuperAdmin),
+            Role = MapRoleInfo(admin.Role),
         };
     }
 
-    private string GenerateToken(long id, string email, string fullName)
+    private string GenerateToken(long id, string email, string fullName, Role? role, bool isSuperAdmin)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, id.ToString()),
-            new Claim(ClaimTypes.Email, email),
-            new Claim(ClaimTypes.Name, fullName),
-            new Claim(ClaimTypes.Role, "Admin"),
+            new(ClaimTypes.NameIdentifier, id.ToString()),
+            new(ClaimTypes.Email, email),
+            new(ClaimTypes.Name, fullName),
+            new(ClaimTypes.Role, "Admin"),
+            new("isSuperAdmin", isSuperAdmin.ToString().ToLower()),
         };
+
+        if (role is not null)
+        {
+            claims.Add(new Claim("roleId", role.Id.ToString()));
+            claims.Add(new Claim("roleName", role.Name));
+            claims.Add(new Claim("roleColor", role.Color));
+            claims.Add(new Claim("pages", JsonSerializer.Serialize(role.Pages)));
+        }
 
         var token = new JwtSecurityToken(
             issuer: _jwt.Issuer,
@@ -86,4 +102,13 @@ public class AdminAuthService : IAdminAuthService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    private static RoleInfo? MapRoleInfo(Role? r) => r is null ? null : new RoleInfo
+    {
+        Id = r.Id,
+        Name = r.Name,
+        Color = r.Color,
+        IsSuperAdmin = r.IsSuperAdmin,
+        Pages = r.Pages,
+    };
 }
