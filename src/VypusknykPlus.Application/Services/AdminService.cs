@@ -398,6 +398,43 @@ public class AdminService : IAdminService
         await _db.SaveChangesAsync();
     }
 
+    public async Task ChangeAdminPasswordAsync(long id, string newPassword)
+    {
+        var admin = await _db.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id)
+            ?? throw new KeyNotFoundException($"Адміна {id} не знайдено");
+
+        admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        admin.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<AdminAdminDetailResponse> ChangeAdminRoleAsync(long id, long? roleId)
+    {
+        var admin = await _db.Admins
+            .IgnoreQueryFilters()
+            .Include(a => a.Role)
+            .FirstOrDefaultAsync(a => a.Id == id)
+            ?? throw new KeyNotFoundException($"Адміна {id} не знайдено");
+
+        admin.RoleId = roleId;
+        admin.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var role = roleId.HasValue
+            ? await _db.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roleId)
+            : null;
+
+        return new AdminAdminDetailResponse
+        {
+            Id = admin.Id,
+            Email = admin.Email,
+            FullName = admin.FullName,
+            CreatedAt = admin.CreatedAt,
+            LastLoginAt = admin.LastLoginAt,
+            Role = MapRoleInfo(role),
+        };
+    }
+
     public async Task<PagedResponse<AdminSavedDesignResponse>> GetSavedDesignsAsync(int page, int pageSize)
     {
         var query = _db.SavedDesigns

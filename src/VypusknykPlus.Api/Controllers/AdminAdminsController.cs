@@ -43,4 +43,18 @@ public class AdminAdminsController : ControllerBase
         await _admin.DeleteAdminAsync(id);
         return NoContent();
     }
+
+    [HttpPatch("{id:long}/password")]
+    public async Task<IActionResult> ChangePassword(long id, [FromBody] ChangeAdminPasswordRequest request)
+    {
+        await _admin.ChangeAdminPasswordAsync(id, request.NewPassword);
+        return NoContent();
+    }
+
+    [HttpPatch("{id:long}/role")]
+    public async Task<ActionResult<AdminAdminDetailResponse>> ChangeRole(long id, [FromBody] ChangeAdminRoleRequest request)
+    {
+        var admin = await _admin.ChangeAdminRoleAsync(id, request.RoleId);
+        return Ok(admin);
+    }
 }

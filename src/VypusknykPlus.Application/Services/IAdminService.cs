@@ -26,4 +26,6 @@ public interface IAdminService
     Task<AdminAdminDetailResponse?> GetAdminDetailAsync(long id);
     Task<AdminAdminDetailResponse> CreateAdminAsync(CreateAdminRequest request);
     Task DeleteAdminAsync(long id);
+    Task ChangeAdminPasswordAsync(long id, string newPassword);
+    Task<AdminAdminDetailResponse> ChangeAdminRoleAsync(long id, long? roleId);
 }
