@@ -42,7 +42,8 @@ src/
     ├── Entities/
     │   ├── BaseEntity.cs          # Id (long), CreatedAt, UpdatedAt, IsDeleted
     │   ├── User.cs
-    │   ├── Admin.cs               # LastLoginAt?
+    │   ├── Admin.cs               # LastLoginAt?, RoleId? FK → Role
+    │   ├── Role.cs                # Name, Color, Pages (text[]), IsSuperAdmin; soft delete
     │   ├── Product.cs
     │   ├── ProductImage.cs
     │   ├── Order.cs
@@ -68,7 +69,8 @@ src/
     │   ├── FixStockProductIdAutoGenerate    # Виправляє sequence після explicit-ID seeding
     │   ├── AddDeliveriesAndSuppliers        # Supplier, Delivery, DeliveryItem + DeliveryItemId на StockTransaction
     │   ├── AddSupplierExtraFields           # TaxId, Address, Notes на Supplier
-    │   └── AddStockTransactionOrderId       # OrderId на StockTransaction
+    │   ├── AddStockTransactionOrderId       # OrderId на StockTransaction
+    │   └── AddRoles                         # Role (text[] Pages), Admin.RoleId FK; seed SuperAdmin/Manager/Warehouse
     ├── Data/
     │   ├── AppDbContext.cs        # Global query filters (!IsDeleted) на: User, Order, OrderItem,
     │   │                          # SavedDesign, CartItem, Product, Admin, Supplier, Delivery
@@ -102,14 +104,35 @@ src/
 ## Admin Auth
 
 Два типи адмінів:
-- **Super Admin** — env vars `Admin:Email` / `Admin:Password`, id=0, не в БД
-- **DB Admin** — таблиця `Admins`, BCrypt, `LastLoginAt` оновлюється при логіні
+- **Super Admin** — env vars `Admin:Email` / `Admin:Password`, id=0, не в БД, завжди повний доступ
+- **DB Admin** — таблиця `Admins`, BCrypt, `LastLoginAt` оновлюється при логіні, має `RoleId FK → Roles`
 
-JWT з роллю `"Admin"`. Всі `/api/v1/admin/*` захищені `[Authorize(Roles = "Admin")]`.
+JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, `isSuperAdmin`, `pages` (JSON array).
+Всі `/api/v1/admin/*` захищені `[Authorize(Roles = "Admin")]`.
+
+**Система ролей:**
+- `Role`: Name, Color, Pages (text[]), IsSuperAdmin, soft delete
+- 3 дефолтних ролі (seed у міграції): SuperAdmin (isSuperAdmin=true), Manager, Warehouse
+- SuperAdmin роль захищена від PUT/DELETE на рівні сервісу (`InvalidOperationException`)
+- `AdminAuthResponse` містить `RoleInfo?` з id/name/color/isSuperAdmin/pages
 
 ## API ендпоінти (Admin)
 
 ### Замовлення / Продукти / Юзери / Адміни — стандартні CRUD (незмінні)
+
+### Адміни та Ролі
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/admin/admins | Список (paginated, Include Role) |
+| GET | /api/v1/admin/admins/{id} | Деталі (Include Role) |
+| POST | /api/v1/admin/admins | Створити (з RoleId?) |
+| DELETE | /api/v1/admin/admins/{id} | Soft delete |
+| PATCH | /api/v1/admin/admins/{id}/password | Змінити пароль → 204 |
+| PATCH | /api/v1/admin/admins/{id}/role | Змінити роль → AdminAdminDetailResponse |
+| GET | /api/v1/admin/roles | Список ролей |
+| POST | /api/v1/admin/roles | Створити роль |
+| PUT | /api/v1/admin/roles/{id} | Оновити (SuperAdmin → 400) |
+| DELETE | /api/v1/admin/roles/{id} | Soft delete (SuperAdmin → 400) |
 
 ### Складський облік
 | Метод | Шлях | Опис |
