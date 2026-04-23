@@ -20,23 +20,14 @@ public class DashboardService : IDashboardService
         var thirtyDaysAgo = now.AddDays(-30).Date;
         var stuckThreshold = now.AddDays(-3);
 
-        var revenueTask = GetRevenueBlockAsync(monthStart, prevMonthStart);
-        var ordersTask = GetOrdersBlockAsync(weekAgo, stuckThreshold);
-        var chartTask = GetChartAsync(thirtyDaysAgo, now);
-        var deliveriesTask = GetDeliveriesBlockAsync(now);
-        var designsTask = GetDesignsBlockAsync(weekAgo);
-        var topProductsTask = GetTopProductsAsync();
-
-        await Task.WhenAll(revenueTask, ordersTask, chartTask, deliveriesTask, designsTask, topProductsTask);
-
         return new DashboardResponse
         {
-            Revenue = await revenueTask,
-            Orders = await ordersTask,
-            Chart = await chartTask,
-            Deliveries = await deliveriesTask,
-            Designs = await designsTask,
-            TopProducts = await topProductsTask,
+            Revenue = await GetRevenueBlockAsync(monthStart, prevMonthStart),
+            Orders = await GetOrdersBlockAsync(weekAgo, stuckThreshold),
+            Chart = await GetChartAsync(thirtyDaysAgo, now),
+            Deliveries = await GetDeliveriesBlockAsync(now),
+            Designs = await GetDesignsBlockAsync(weekAgo),
+            TopProducts = await GetTopProductsAsync(),
         };
     }
 
