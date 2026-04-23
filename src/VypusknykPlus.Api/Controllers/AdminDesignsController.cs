@@ -22,4 +22,12 @@ public class AdminDesignsController : ControllerBase
     {
         return Ok(await _admin.GetSavedDesignsAsync(page, pageSize));
     }
+
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<AdminSavedDesignDetailResponse>> GetById(long id)
+    {
+        var result = await _admin.GetSavedDesignAsync(id);
+        if (result is null) return NotFound();
+        return Ok(result);
+    }
 }

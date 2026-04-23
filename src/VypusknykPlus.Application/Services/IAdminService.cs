@@ -22,6 +22,7 @@ public interface IAdminService
     Task<AdminUserDetailResponse?> GetUserAsync(long id);
 
     Task<PagedResponse<AdminSavedDesignResponse>> GetSavedDesignsAsync(int page, int pageSize);
+    Task<AdminSavedDesignDetailResponse?> GetSavedDesignAsync(long id);
     Task<PagedResponse<AdminAdminResponse>> GetAdminsAsync(int page, int pageSize);
     Task<AdminAdminDetailResponse?> GetAdminDetailAsync(long id);
     Task<AdminAdminDetailResponse> CreateAdminAsync(CreateAdminRequest request);

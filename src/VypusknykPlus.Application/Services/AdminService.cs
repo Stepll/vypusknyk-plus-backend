@@ -468,6 +468,28 @@ public class AdminService : IAdminService
         };
     }
 
+    public async Task<AdminSavedDesignDetailResponse?> GetSavedDesignAsync(long id)
+    {
+        var d = await _db.SavedDesigns
+            .IgnoreQueryFilters()
+            .Include(d => d.User)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
+
+        if (d is null) return null;
+
+        return new AdminSavedDesignDetailResponse
+        {
+            Id = d.Id,
+            DesignName = d.DesignName,
+            SavedAt = d.SavedAt,
+            UserId = d.UserId,
+            UserFullName = d.User.FullName,
+            UserEmail = d.User.Email,
+            State = d.State,
+        };
+    }
+
     public async Task<PagedResponse<AdminAdminResponse>> GetAdminsAsync(int page, int pageSize)
     {
         var query = _db.Admins.IgnoreQueryFilters().Include(a => a.Role).AsNoTracking();
