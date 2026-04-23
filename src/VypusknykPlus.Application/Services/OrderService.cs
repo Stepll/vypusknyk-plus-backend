@@ -36,6 +36,19 @@ public class OrderService : IOrderService
             _ => throw new ArgumentException("Невідомий метод оплати")
         };
 
+        var productIds = request.Items
+            .Where(i => i.ProductId.HasValue)
+            .Select(i => (long)i.ProductId!.Value)
+            .Distinct()
+            .ToList();
+
+        var productCategories = productIds.Count > 0
+            ? await _db.Products
+                .IgnoreQueryFilters()
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.Category.ToString())
+            : new Dictionary<long, string>();
+
         var orderItems = request.Items.Select(i => new OrderItem
         {
             Name = i.Name,
@@ -43,6 +56,7 @@ public class OrderService : IOrderService
             Price = i.Price,
             NamesData = i.NamesData,
             RibbonCustomization = i.RibbonCustomization,
+            ProductCategory = i.ProductId.HasValue && productCategories.TryGetValue(i.ProductId.Value, out var cat) ? cat : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         }).ToList();

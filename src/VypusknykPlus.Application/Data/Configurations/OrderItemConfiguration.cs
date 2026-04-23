@@ -12,6 +12,7 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 
         builder.Property(oi => oi.Name).IsRequired().HasMaxLength(200);
         builder.Property(oi => oi.Price).HasPrecision(10, 2);
+        builder.Property(oi => oi.ProductCategory).HasMaxLength(50);
 
         builder.OwnsOne(oi => oi.NamesData, nd =>
         {
