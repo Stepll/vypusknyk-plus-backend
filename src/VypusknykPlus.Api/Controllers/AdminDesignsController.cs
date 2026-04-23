@@ -30,4 +30,18 @@ public class AdminDesignsController : ControllerBase
         if (result is null) return NotFound();
         return Ok(result);
     }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id)
+    {
+        try
+        {
+            await _admin.DeleteSavedDesignAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 }

@@ -12,4 +12,5 @@ public class RibbonState
     public string ExtraTextColor { get; set; } = string.Empty;
     public string Font { get; set; } = string.Empty;
     public int EmblemKey { get; set; }
+    public List<RibbonClassGroup> Classes { get; set; } = [];
 }

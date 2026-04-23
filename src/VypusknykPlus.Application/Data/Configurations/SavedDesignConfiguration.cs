@@ -24,6 +24,11 @@ public class SavedDesignConfiguration : IEntityTypeConfiguration<SavedDesign>
             s.Property(x => x.TextColor).HasMaxLength(50);
             s.Property(x => x.ExtraTextColor).HasMaxLength(50);
             s.Property(x => x.Font).HasMaxLength(50);
+            s.OwnsMany(x => x.Classes, c =>
+            {
+                c.Property(x => x.ClassName).HasMaxLength(200);
+                c.Property(x => x.Names).HasMaxLength(10000);
+            });
         });
 
         builder.HasOne(sd => sd.User)

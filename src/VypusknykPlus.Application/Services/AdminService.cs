@@ -456,6 +456,7 @@ public class AdminService : IAdminService
                 UserId = d.UserId,
                 UserFullName = d.User.FullName,
                 UserEmail = d.User.Email,
+                State = d.State,
             })
             .ToListAsync();
 
@@ -488,6 +489,20 @@ public class AdminService : IAdminService
             UserEmail = d.User.Email,
             State = d.State,
         };
+    }
+
+    public async Task DeleteSavedDesignAsync(long id)
+    {
+        var design = await _db.SavedDesigns
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
+
+        if (design is null)
+            throw new KeyNotFoundException("Дизайн не знайдено");
+
+        design.IsDeleted = true;
+        design.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
     }
 
     public async Task<PagedResponse<AdminAdminResponse>> GetAdminsAsync(int page, int pageSize)

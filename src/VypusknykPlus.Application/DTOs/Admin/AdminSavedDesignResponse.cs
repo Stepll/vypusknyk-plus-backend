@@ -1,3 +1,5 @@
+using VypusknykPlus.Application.ValueObjects;
+
 namespace VypusknykPlus.Application.DTOs.Admin;
 
 public class AdminSavedDesignResponse
@@ -8,4 +10,5 @@ public class AdminSavedDesignResponse
     public long UserId { get; set; }
     public string UserFullName { get; set; } = string.Empty;
     public string UserEmail { get; set; } = string.Empty;
+    public RibbonState State { get; set; } = new();
 }
