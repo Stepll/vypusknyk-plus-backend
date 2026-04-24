@@ -188,6 +188,80 @@ public class DashboardService : IDashboardService
         };
     }
 
+    public async Task<DashboardStatsResponse> GetStatsAsync(string period)
+    {
+        var now = DateTime.UtcNow;
+
+        var (currentStart, currentEnd, previousStart) = period switch
+        {
+            "day" => (now.Date, now, now.Date.AddDays(-1)),
+            "week" => (StartOfWeek(now), now, StartOfWeek(now).AddDays(-7)),
+            "year" => (new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc), now,
+                       new DateTime(now.Year - 1, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+            _ => (new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc), now,
+                  new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-1)),
+        };
+
+        var periodLength = currentEnd - currentStart;
+        var previousEnd = previousStart + periodLength;
+
+        var current = await _db.Orders
+            .Where(o => o.CreatedAt >= currentStart && o.CreatedAt <= currentEnd)
+            .Select(o => new { o.Total, o.CreatedAt })
+            .ToListAsync();
+
+        var previous = await _db.Orders
+            .Where(o => o.CreatedAt >= previousStart && o.CreatedAt < previousEnd)
+            .Select(o => new { o.Total })
+            .ToListAsync();
+
+        var curRevenue = (double)current.Sum(o => o.Total);
+        var curCount = current.Count;
+        var curAvg = curCount > 0 ? curRevenue / curCount : 0;
+
+        var prevRevenue = (double)previous.Sum(o => o.Total);
+        var prevCount = previous.Count;
+        var prevAvg = prevCount > 0 ? prevRevenue / prevCount : 0;
+
+        var partMs = periodLength.TotalMilliseconds / 4;
+        var revenueSparkline = new List<double>();
+        var countSparkline = new List<double>();
+        var avgSparkline = new List<double>();
+
+        for (var i = 0; i < 4; i++)
+        {
+            var pStart = currentStart.AddMilliseconds(partMs * i);
+            var pEnd = i == 3 ? currentEnd : currentStart.AddMilliseconds(partMs * (i + 1));
+            var part = current.Where(o => o.CreatedAt >= pStart && o.CreatedAt < pEnd).ToList();
+            var pRev = (double)part.Sum(o => o.Total);
+            var pCount = part.Count;
+            revenueSparkline.Add(Math.Round(pRev));
+            countSparkline.Add(pCount);
+            avgSparkline.Add(pCount > 0 ? Math.Round(pRev / pCount) : 0);
+        }
+
+        return new DashboardStatsResponse
+        {
+            Revenue = Metric(curRevenue, prevRevenue, revenueSparkline),
+            OrdersCount = Metric(curCount, prevCount, countSparkline),
+            AvgCheck = Metric(curAvg, prevAvg, avgSparkline),
+        };
+    }
+
+    private static DateTime StartOfWeek(DateTime dt)
+    {
+        var diff = ((int)dt.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+        return dt.Date.AddDays(-diff);
+    }
+
+    private static DashboardStatMetric Metric(double current, double previous, List<double> sparkline) => new()
+    {
+        Current = Math.Round(current),
+        Previous = Math.Round(previous),
+        ChangePercent = previous == 0 ? 0 : Math.Round((current - previous) / previous * 100, 1),
+        Sparkline = sparkline,
+    };
+
     private async Task<List<DashboardTopCategoryBlock>> GetTopProductsAsync()
     {
         var items = await _db.OrderItems

@@ -19,4 +19,10 @@ public class AdminDashboardController : ControllerBase
     {
         return Ok(await _dashboard.GetAsync());
     }
+
+    [HttpGet("stats")]
+    public async Task<ActionResult<DashboardStatsResponse>> GetStats([FromQuery] string period = "month")
+    {
+        return Ok(await _dashboard.GetStatsAsync(period));
+    }
 }
