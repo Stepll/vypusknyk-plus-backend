@@ -384,6 +384,18 @@ public class DashboardService : IDashboardService
         };
     }
 
+    public async Task<DashboardDesignsBlock> GetDesignsAsync(string period)
+    {
+        var now = DateTime.UtcNow;
+        var fromDate = period switch
+        {
+            "month" => new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+            "year" => new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            _ => now.AddDays(-7),
+        };
+        return await GetDesignsBlockAsync(fromDate);
+    }
+
     public async Task<DashboardTopItemsResponse> GetTopItemsAsync(string period, string metric)
     {
         var now = DateTime.UtcNow;

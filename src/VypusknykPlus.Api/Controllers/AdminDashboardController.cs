@@ -51,4 +51,10 @@ public class AdminDashboardController : ControllerBase
     {
         return Ok(await _dashboard.GetLowStockAsync());
     }
+
+    [HttpGet("designs")]
+    public async Task<ActionResult<DashboardDesignsBlock>> GetDesigns([FromQuery] string period = "week")
+    {
+        return Ok(await _dashboard.GetDesignsAsync(period));
+    }
 }
