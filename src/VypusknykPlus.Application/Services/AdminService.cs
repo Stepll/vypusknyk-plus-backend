@@ -71,7 +71,11 @@ public class AdminService : IAdminService
 
     public async Task<PagedResponse<AdminProductResponse>> GetProductsAsync(int page, int pageSize)
     {
-        var query = _db.Products.IgnoreQueryFilters().AsNoTracking();
+        var query = _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .AsNoTracking();
 
         var total = await query.CountAsync();
         var items = await query
@@ -88,7 +92,10 @@ public class AdminService : IAdminService
                 Name = p.Name,
                 Description = p.Description,
                 Price = p.Price,
-                Category = p.Category.ToString(),
+                CategoryId = p.CategoryId,
+                CategoryName = p.Category.Name,
+                SubcategoryId = p.SubcategoryId,
+                SubcategoryName = p.Subcategory?.Name,
                 ImageUrl = _imageService.GetPublicUrl(p.ImageKey),
                 IsDeleted = p.IsDeleted,
             }).ToList(),
@@ -102,6 +109,8 @@ public class AdminService : IAdminService
     {
         var p = await _db.Products
             .IgnoreQueryFilters()
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
             .Include(p => p.Images.OrderBy(i => i.CreatedAt))
             .FirstOrDefaultAsync(p => p.Id == id);
         return p is null ? null : MapProductDetail(p);
@@ -109,16 +118,14 @@ public class AdminService : IAdminService
 
     public async Task<AdminProductDetailResponse> CreateProductAsync(SaveProductRequest request)
     {
-        if (!Enum.TryParse<ProductCategory>(request.Category, true, out var category))
-            throw new ArgumentException($"Невідома категорія: {request.Category}");
-
         var product = new Product
         {
             Name = request.Name,
             Description = request.Description,
             Price = request.Price,
             MinOrder = request.MinOrder,
-            Category = category,
+            CategoryId = request.CategoryId,
+            SubcategoryId = request.SubcategoryId,
             Color = string.IsNullOrWhiteSpace(request.Color) ? null : request.Color,
             Tags = request.Tags,
             Popular = request.Popular,
@@ -130,22 +137,29 @@ public class AdminService : IAdminService
 
         _db.Products.Add(product);
         await _db.SaveChangesAsync();
+
+        await _db.Entry(product).Reference(p => p.Category).LoadAsync();
+        if (product.SubcategoryId.HasValue)
+            await _db.Entry(product).Reference(p => p.Subcategory).LoadAsync();
+
         return MapProductDetail(product);
     }
 
     public async Task<AdminProductDetailResponse> UpdateProductAsync(long id, SaveProductRequest request)
     {
-        var product = await _db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id)
+        var product = await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new KeyNotFoundException($"Продукт {id} не знайдено");
-
-        if (!Enum.TryParse<ProductCategory>(request.Category, true, out var category))
-            throw new ArgumentException($"Невідома категорія: {request.Category}");
 
         product.Name = request.Name;
         product.Description = request.Description;
         product.Price = request.Price;
         product.MinOrder = request.MinOrder;
-        product.Category = category;
+        product.CategoryId = request.CategoryId;
+        product.SubcategoryId = request.SubcategoryId;
         product.Color = string.IsNullOrWhiteSpace(request.Color) ? null : request.Color;
         product.Tags = request.Tags;
         product.Popular = request.Popular;
@@ -154,6 +168,11 @@ public class AdminService : IAdminService
         product.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        await _db.Entry(product).Reference(p => p.Category).LoadAsync();
+        if (product.SubcategoryId.HasValue)
+            await _db.Entry(product).Reference(p => p.Subcategory).LoadAsync();
+
         return MapProductDetail(product);
     }
 
@@ -543,7 +562,10 @@ public class AdminService : IAdminService
         Description = p.Description,
         Price = p.Price,
         MinOrder = p.MinOrder,
-        Category = p.Category.ToString(),
+        CategoryId = p.CategoryId,
+        CategoryName = p.Category.Name,
+        SubcategoryId = p.SubcategoryId,
+        SubcategoryName = p.Subcategory?.Name,
         Color = p.Color,
         Tags = p.Tags,
         Popular = p.Popular,

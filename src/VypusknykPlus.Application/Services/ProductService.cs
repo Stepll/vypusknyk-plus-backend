@@ -22,13 +22,15 @@ public class ProductService : IProductService
 
     public async Task<PagedResponse<ProductResponse>> GetAllAsync(ProductQueryParams query)
     {
-        var q = _db.Products.AsQueryable();
+        var q = _db.Products
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .AsQueryable();
 
         // Filter by category
-        if (!string.IsNullOrWhiteSpace(query.Category) &&
-            Enum.TryParse<ProductCategory>(query.Category, ignoreCase: true, out var category))
+        if (long.TryParse(query.Category, out var categoryId))
         {
-            q = q.Where(p => p.Category == category);
+            q = q.Where(p => p.CategoryId == categoryId);
         }
 
         // Search by name and description
@@ -74,7 +76,10 @@ public class ProductService : IProductService
 
     public async Task<ProductResponse?> GetByIdAsync(long id)
     {
-        var product = await _db.Products.FindAsync(id);
+        var product = await _db.Products
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (product is null)
             return null;
@@ -84,7 +89,10 @@ public class ProductService : IProductService
 
     public async Task<ProductResponse> UploadImageAsync(long productId, Stream imageStream, string contentType)
     {
-        var product = await _db.Products.FindAsync(productId)
+        var product = await _db.Products
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .FirstOrDefaultAsync(p => p.Id == productId)
             ?? throw new KeyNotFoundException($"Product {productId} not found");
 
         // Delete old image if replacing with a different format
@@ -102,7 +110,10 @@ public class ProductService : IProductService
 
     public async Task<ProductResponse> DeleteImageAsync(long productId)
     {
-        var product = await _db.Products.FindAsync(productId)
+        var product = await _db.Products
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .FirstOrDefaultAsync(p => p.Id == productId)
             ?? throw new KeyNotFoundException($"Product {productId} not found");
 
         if (!string.IsNullOrEmpty(product.ImageKey))
@@ -120,7 +131,10 @@ public class ProductService : IProductService
     {
         Id = p.Id,
         Name = p.Name,
-        Category = p.Category.ToString().ToLower(),
+        CategoryId = p.CategoryId,
+        CategoryName = p.Category.Name,
+        SubcategoryId = p.SubcategoryId,
+        SubcategoryName = p.Subcategory?.Name,
         Color = p.Color,
         Price = p.Price,
         MinOrder = p.MinOrder,

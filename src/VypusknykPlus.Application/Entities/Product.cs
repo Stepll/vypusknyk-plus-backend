@@ -1,18 +1,11 @@
 namespace VypusknykPlus.Application.Entities;
 
-public enum ProductCategory
-{
-    Ribbon,
-    Medal,
-    Certificate,
-    Accessory
-}
-
 public class Product
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public ProductCategory Category { get; set; }
+    public long CategoryId { get; set; }
+    public long? SubcategoryId { get; set; }
     public string? Color { get; set; }
     public decimal Price { get; set; }
     public int MinOrder { get; set; } = 1;
@@ -22,6 +15,8 @@ public class Product
     public string[] Tags { get; set; } = [];
     public string? ImageKey { get; set; }
 
+    public ProductCategory Category { get; set; } = null!;
+    public ProductSubcategory? Subcategory { get; set; }
     public ICollection<ProductImage> Images { get; set; } = [];
 
     public DateTime CreatedAt { get; set; }

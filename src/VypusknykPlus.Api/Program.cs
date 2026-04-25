@@ -93,6 +93,7 @@ builder.Services.AddScoped<IDeliveryService, DeliveryService>();
 builder.Services.AddScoped<IAdminRoleService, AdminRoleService>();
 builder.Services.AddScoped<IInfoPageService, InfoPageService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IProductCategoryService, ProductCategoryService>();
 
 // --- CORS ---
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()

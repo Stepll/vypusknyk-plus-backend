@@ -14,14 +14,13 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Id).ValueGeneratedOnAdd();
 
         builder.Property(p => p.Name).IsRequired().HasMaxLength(200);
-        builder.Property(p => p.Category).HasConversion<string>().HasMaxLength(50);
         builder.Property(p => p.Color).HasMaxLength(50);
         builder.Property(p => p.Price).HasPrecision(10, 2);
         builder.Property(p => p.Description).HasMaxLength(2000);
 
         builder.Property(p => p.ImageKey).HasMaxLength(500).IsRequired(false);
 
-        builder.HasIndex(p => p.Category);
+        builder.HasIndex(p => p.CategoryId);
 
         builder.HasData(GetSeedProducts());
     }
@@ -32,7 +31,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 1,
             Name = "Атласна стрічка \"Випускник\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "coral",
             Price = 45m,
             MinOrder = 10,
@@ -47,7 +46,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 2,
             Name = "Стрічка синьо-жовта \"Патріот\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "blue-yellow",
             Price = 50m,
             MinOrder = 10,
@@ -62,7 +61,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 3,
             Name = "Стрічка \"Золотий випускник\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "gold",
             Price = 65m,
             MinOrder = 5,
@@ -77,7 +76,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 4,
             Name = "Стрічка біла \"Класика\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "white",
             Price = 40m,
             MinOrder = 10,
@@ -92,7 +91,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 5,
             Name = "Стрічка червона \"Переможець\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "red",
             Price = 48m,
             MinOrder = 10,
@@ -107,7 +106,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 6,
             Name = "Стрічка фіолетова \"Творчість\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "purple",
             Price = 48m,
             MinOrder = 10,
@@ -122,7 +121,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 7,
             Name = "Медаль \"Випускник року\"",
-            Category = ProductCategory.Medal,
+            CategoryId = 2,
             Color = null,
             Price = 85m,
             MinOrder = 1,
@@ -137,7 +136,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 8,
             Name = "Медаль \"За відмінне навчання\"",
-            Category = ProductCategory.Medal,
+            CategoryId = 2,
             Color = null,
             Price = 90m,
             MinOrder = 1,
@@ -152,7 +151,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 9,
             Name = "Медаль \"Переможець олімпіади\"",
-            Category = ProductCategory.Medal,
+            CategoryId = 2,
             Color = null,
             Price = 95m,
             MinOrder = 1,
@@ -167,7 +166,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 10,
             Name = "Грамота \"Випускник\"",
-            Category = ProductCategory.Certificate,
+            CategoryId = 3,
             Color = null,
             Price = 25m,
             MinOrder = 5,
@@ -182,7 +181,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 11,
             Name = "Диплом \"З відзнакою\"",
-            Category = ProductCategory.Certificate,
+            CategoryId = 3,
             Color = null,
             Price = 35m,
             MinOrder = 1,
@@ -197,7 +196,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 12,
             Name = "Набір \"Випускний під ключ\"",
-            Category = ProductCategory.Accessory,
+            CategoryId = 4,
             Color = null,
             Price = 320m,
             MinOrder = 1,
@@ -212,7 +211,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 13,
             Name = "Підвіска \"Зірка випускника\"",
-            Category = ProductCategory.Accessory,
+            CategoryId = 4,
             Color = null,
             Price = 55m,
             MinOrder = 1,
@@ -227,7 +226,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 14,
             Name = "Стрічка зелена \"Еко\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "green",
             Price = 45m,
             MinOrder = 10,
@@ -242,7 +241,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             Id = 15,
             Name = "Стрічка чорна \"Преміум\"",
-            Category = ProductCategory.Ribbon,
+            CategoryId = 1,
             Color = "black",
             Price = 70m,
             MinOrder = 5,

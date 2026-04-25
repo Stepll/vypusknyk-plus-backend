@@ -45,8 +45,9 @@ public class OrderService : IOrderService
         var productCategories = productIds.Count > 0
             ? await _db.Products
                 .IgnoreQueryFilters()
+                .Include(p => p.Category)
                 .Where(p => productIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id, p => p.Category.ToString())
+                .ToDictionaryAsync(p => p.Id, p => p.Category.Name)
             : new Dictionary<long, string>();
 
         var orderItems = request.Items.Select(i => new OrderItem
