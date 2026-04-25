@@ -8,4 +8,6 @@ public interface IDashboardService
     Task<DashboardStatsResponse> GetStatsAsync(string period);
     Task<DashboardChartResponse> GetChartAsync(string period);
     Task<DashboardDistributionsResponse> GetDistributionsAsync(string period);
+    Task<DashboardTopItemsResponse> GetTopItemsAsync(string period, string metric);
+    Task<DashboardLowStockResponse> GetLowStockAsync();
 }

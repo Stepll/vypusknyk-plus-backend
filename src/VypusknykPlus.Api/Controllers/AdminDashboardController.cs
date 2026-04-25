@@ -37,4 +37,18 @@ public class AdminDashboardController : ControllerBase
     {
         return Ok(await _dashboard.GetDistributionsAsync(period));
     }
+
+    [HttpGet("top-items")]
+    public async Task<ActionResult<DashboardTopItemsResponse>> GetTopItems(
+        [FromQuery] string period = "month",
+        [FromQuery] string metric = "orders")
+    {
+        return Ok(await _dashboard.GetTopItemsAsync(period, metric));
+    }
+
+    [HttpGet("low-stock")]
+    public async Task<ActionResult<DashboardLowStockResponse>> GetLowStock()
+    {
+        return Ok(await _dashboard.GetLowStockAsync());
+    }
 }

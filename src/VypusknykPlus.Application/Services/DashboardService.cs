@@ -384,6 +384,59 @@ public class DashboardService : IDashboardService
         };
     }
 
+    public async Task<DashboardTopItemsResponse> GetTopItemsAsync(string period, string metric)
+    {
+        var now = DateTime.UtcNow;
+        DateTime? fromDate = period switch
+        {
+            "week" => now.AddDays(-7),
+            "month" => now.AddDays(-30),
+            _ => null,
+        };
+
+        var activeCount = await _db.Products.CountAsync();
+
+        var query = _db.OrderItems.Select(oi => new { oi.Name, oi.Quantity, oi.Order.CreatedAt });
+        if (fromDate.HasValue)
+            query = query.Where(x => x.CreatedAt >= fromDate.Value);
+
+        var items = await query.ToListAsync();
+
+        var top = metric == "quantity"
+            ? items.GroupBy(i => i.Name)
+                   .Select(g => new DashboardTopItemEntry { Name = g.Key, Value = g.Sum(i => i.Quantity) })
+                   .OrderByDescending(x => x.Value).Take(5).ToList()
+            : items.GroupBy(i => i.Name)
+                   .Select(g => new DashboardTopItemEntry { Name = g.Key, Value = g.Count() })
+                   .OrderByDescending(x => x.Value).Take(5).ToList();
+
+        return new DashboardTopItemsResponse { ActiveCount = activeCount, Items = top };
+    }
+
+    public async Task<DashboardLowStockResponse> GetLowStockAsync()
+    {
+        var products = await _db.StockProducts
+            .Include(p => p.Variants)
+            .ThenInclude(v => v.Transactions)
+            .ToListAsync();
+
+        var items = products
+            .Select(p => new
+            {
+                p.Name,
+                Stock = p.Variants.Sum(v =>
+                    v.Transactions.Where(t => t.Type == "income").Sum(t => t.Quantity) -
+                    v.Transactions.Where(t => t.Type == "outcome").Sum(t => t.Quantity))
+            })
+            .Where(p => p.Stock < 10)
+            .OrderBy(p => p.Stock)
+            .Take(5)
+            .Select(p => new DashboardLowStockItem { Name = p.Name, Stock = p.Stock })
+            .ToList();
+
+        return new DashboardLowStockResponse { Items = items };
+    }
+
     private static DateTime StartOfWeek(DateTime dt)
     {
         var diff = ((int)dt.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;

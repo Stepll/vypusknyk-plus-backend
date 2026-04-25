@@ -24,3 +24,26 @@ public class DashboardDistributionItem
     public string Key { get; set; } = string.Empty;
     public int Count { get; set; }
 }
+
+public class DashboardTopItemsResponse
+{
+    public int ActiveCount { get; set; }
+    public List<DashboardTopItemEntry> Items { get; set; } = [];
+}
+
+public class DashboardTopItemEntry
+{
+    public string Name { get; set; } = string.Empty;
+    public int Value { get; set; }
+}
+
+public class DashboardLowStockResponse
+{
+    public List<DashboardLowStockItem> Items { get; set; } = [];
+}
+
+public class DashboardLowStockItem
+{
+    public string Name { get; set; } = string.Empty;
+    public int Stock { get; set; }
+}
