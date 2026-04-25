@@ -1,11 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using VypusknykPlus.Application.Data;
 
 #nullable disable
 
 namespace VypusknykPlus.Application.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260425140000_AddProductCategoriesTable")]
     public partial class AddProductCategoriesTable : Migration
     {
         /// <inheritdoc />
