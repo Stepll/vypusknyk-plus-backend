@@ -285,6 +285,105 @@ public class DashboardService : IDashboardService
         };
     }
 
+    public async Task<DashboardChartResponse> GetChartAsync(string period)
+    {
+        var now = DateTime.UtcNow;
+
+        if (period == "year")
+        {
+            var yearStart = new DateTime(now.Year - 1, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var orders = await _db.Orders
+                .Where(o => o.CreatedAt >= yearStart)
+                .Select(o => new { o.CreatedAt, o.Total })
+                .ToListAsync();
+
+            var points = new List<DashboardChartPoint2>();
+            for (var m = yearStart; m <= now; m = m.AddMonths(1))
+            {
+                var mEnd = m.AddMonths(1);
+                var bucket = orders.Where(o => o.CreatedAt >= m && o.CreatedAt < mEnd).ToList();
+                points.Add(new DashboardChartPoint2
+                {
+                    Date = m.ToString("yyyy-MM"),
+                    Orders = bucket.Count,
+                    Revenue = Math.Round((double)bucket.Sum(o => o.Total)),
+                });
+            }
+            return new DashboardChartResponse { Points = points };
+        }
+        else
+        {
+            var fromDate = now.Date.AddDays(-29);
+            var orders = await _db.Orders
+                .Where(o => o.CreatedAt >= fromDate)
+                .Select(o => new { o.CreatedAt, o.Total })
+                .ToListAsync();
+
+            var points = new List<DashboardChartPoint2>();
+            for (var d = fromDate; d <= now.Date; d = d.AddDays(1))
+            {
+                var bucket = orders.Where(o => o.CreatedAt.Date == d).ToList();
+                points.Add(new DashboardChartPoint2
+                {
+                    Date = d.ToString("MM-dd"),
+                    Orders = bucket.Count,
+                    Revenue = Math.Round((double)bucket.Sum(o => o.Total)),
+                });
+            }
+            return new DashboardChartResponse { Points = points };
+        }
+    }
+
+    public async Task<DashboardDistributionsResponse> GetDistributionsAsync(string period)
+    {
+        var now = DateTime.UtcNow;
+        var start = period == "year"
+            ? new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            : new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var deliveryMethods = await _db.Orders
+            .Where(o => o.CreatedAt >= start)
+            .GroupBy(o => o.Delivery.Method)
+            .Select(g => new DashboardDistributionItem
+            {
+                Key = g.Key.ToString(),
+                Count = g.Count(),
+            })
+            .ToListAsync();
+
+        var ribbonItems = await _db.OrderItems
+            .Include(oi => oi.Order)
+            .Where(oi => oi.Order.CreatedAt >= start && oi.RibbonCustomization != null)
+            .Select(oi => new
+            {
+                Material = oi.RibbonCustomization!.Material,
+                Color = oi.RibbonCustomization!.Color,
+                oi.Quantity,
+            })
+            .ToListAsync();
+
+        var materials = ribbonItems
+            .Where(i => !string.IsNullOrEmpty(i.Material))
+            .GroupBy(i => i.Material)
+            .Select(g => new DashboardDistributionItem { Key = g.Key, Count = g.Sum(i => i.Quantity) })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        var colors = ribbonItems
+            .Where(i => !string.IsNullOrEmpty(i.Color))
+            .GroupBy(i => i.Color)
+            .Select(g => new DashboardDistributionItem { Key = g.Key, Count = g.Sum(i => i.Quantity) })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        return new DashboardDistributionsResponse
+        {
+            DeliveryMethods = deliveryMethods,
+            Materials = materials,
+            Colors = colors,
+        };
+    }
+
     private static DateTime StartOfWeek(DateTime dt)
     {
         var diff = ((int)dt.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
