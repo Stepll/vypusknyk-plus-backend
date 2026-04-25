@@ -49,3 +49,32 @@ public class DashboardLowStockItem
     public string Color { get; set; } = string.Empty;
     public int Stock { get; set; }
 }
+
+public class SalesByCategoryResponse
+{
+    public List<SalesCategoryEntry> Categories { get; set; } = [];
+}
+
+public class SalesCategoryEntry
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int TotalSold { get; set; }
+    public List<SalesProductEntry> TopProducts { get; set; } = [];
+    public List<SalesSubcategoryEntry> Subcategories { get; set; } = [];
+}
+
+public class SalesSubcategoryEntry
+{
+    public long Id { get; set; }
+    public long CategoryId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int TotalSold { get; set; }
+    public List<SalesProductEntry> TopProducts { get; set; } = [];
+}
+
+public class SalesProductEntry
+{
+    public string Name { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+}

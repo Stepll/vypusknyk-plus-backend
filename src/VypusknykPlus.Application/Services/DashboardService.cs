@@ -477,6 +477,115 @@ public class DashboardService : IDashboardService
         return new DashboardLowStockResponse { Items = items };
     }
 
+    public async Task<SalesByCategoryResponse> GetSalesByCategoryAsync(string period)
+    {
+        var now = DateTime.UtcNow;
+        DateTime? fromDate = period switch
+        {
+            "week"  => now.AddDays(-7),
+            "month" => now.AddDays(-30),
+            "year"  => new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            _       => null,
+        };
+
+        // Product name → category/subcategory mapping
+        var productMap = (await _db.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .AsNoTracking()
+            .Select(p => new
+            {
+                p.Name,
+                p.CategoryId,
+                p.SubcategoryId,
+            })
+            .ToListAsync())
+            .GroupBy(p => p.Name)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Order items in period
+        var itemsQuery = _db.OrderItems
+            .Include(oi => oi.Order)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (fromDate.HasValue)
+            itemsQuery = itemsQuery.Where(oi => oi.Order.CreatedAt >= fromDate.Value);
+
+        var rawItems = await itemsQuery
+            .Select(oi => new { oi.Name, oi.Quantity })
+            .ToListAsync();
+
+        var soldByProduct = rawItems
+            .GroupBy(i => i.Name)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+
+        // Load category structure
+        var categories = await _db.ProductCategories
+            .Include(c => c.Subcategories.OrderBy(s => s.Order))
+            .OrderBy(c => c.Order)
+            .AsNoTracking()
+            .ToListAsync();
+
+        // Accumulators: catId/subId → productName → qty
+        var catSales = categories.ToDictionary(c => c.Id, _ => new Dictionary<string, int>());
+        var subSales = categories
+            .SelectMany(c => c.Subcategories)
+            .ToDictionary(s => s.Id, _ => new Dictionary<string, int>());
+
+        foreach (var (productName, qty) in soldByProduct)
+        {
+            if (!productMap.TryGetValue(productName, out var prod)) continue;
+
+            if (catSales.TryGetValue(prod.CategoryId, out var catProds))
+                catProds[productName] = catProds.GetValueOrDefault(productName) + qty;
+
+            if (prod.SubcategoryId.HasValue && subSales.TryGetValue(prod.SubcategoryId.Value, out var subProds))
+                subProds[productName] = subProds.GetValueOrDefault(productName) + qty;
+        }
+
+        static List<SalesProductEntry> Top10(Dictionary<string, int> d) =>
+            d.OrderByDescending(x => x.Value).Take(10)
+             .Select(x => new SalesProductEntry { Name = x.Key, Quantity = x.Value })
+             .ToList();
+
+        var result = categories.Select(cat =>
+        {
+            var catProds = catSales[cat.Id];
+            var subs = cat.Subcategories
+                .Select(s =>
+                {
+                    var subProds = subSales[s.Id];
+                    return new SalesSubcategoryEntry
+                    {
+                        Id = s.Id,
+                        CategoryId = cat.Id,
+                        Name = s.Name,
+                        TotalSold = subProds.Values.Sum(),
+                        TopProducts = Top10(subProds),
+                    };
+                })
+                .Where(s => s.TotalSold > 0)
+                .OrderByDescending(s => s.TotalSold)
+                .ToList();
+
+            return new SalesCategoryEntry
+            {
+                Id = cat.Id,
+                Name = cat.Name,
+                TotalSold = catProds.Values.Sum(),
+                TopProducts = Top10(catProds),
+                Subcategories = subs,
+            };
+        })
+        .Where(c => c.TotalSold > 0)
+        .OrderByDescending(c => c.TotalSold)
+        .ToList();
+
+        return new SalesByCategoryResponse { Categories = result };
+    }
+
     private static DateTime StartOfWeek(DateTime dt)
     {
         var diff = ((int)dt.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;

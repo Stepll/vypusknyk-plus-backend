@@ -57,4 +57,10 @@ public class AdminDashboardController : ControllerBase
     {
         return Ok(await _dashboard.GetDesignsAsync(period));
     }
+
+    [HttpGet("sales-by-category")]
+    public async Task<ActionResult<SalesByCategoryResponse>> GetSalesByCategory([FromQuery] string period = "month")
+    {
+        return Ok(await _dashboard.GetSalesByCategoryAsync(period));
+    }
 }

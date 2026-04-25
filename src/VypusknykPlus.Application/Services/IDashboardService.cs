@@ -11,4 +11,5 @@ public interface IDashboardService
     Task<DashboardTopItemsResponse> GetTopItemsAsync(string period, string metric);
     Task<DashboardLowStockResponse> GetLowStockAsync();
     Task<DashboardDesignsBlock> GetDesignsAsync(string period);
+    Task<SalesByCategoryResponse> GetSalesByCategoryAsync(string period);
 }
