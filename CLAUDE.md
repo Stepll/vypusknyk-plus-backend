@@ -44,7 +44,9 @@ src/
     │   ├── User.cs
     │   ├── Admin.cs               # LastLoginAt?, RoleId? FK → Role
     │   ├── Role.cs                # Name, Color, Pages (text[]), IsSuperAdmin; soft delete
-    │   ├── Product.cs
+    │   ├── Product.cs             # CategoryId FK → ProductCategory, SubcategoryId? FK → ProductSubcategory
+    │   ├── ProductCategory.cs     # Id, Name, Order; seed: Стрічки(1)/Медалі(2)/Грамоти(3)/Аксесуари(4)
+    │   ├── ProductSubcategory.cs  # Id, CategoryId, Name, Order; ValueGeneratedOnAdd()
     │   ├── ProductImage.cs
     │   ├── Order.cs
     │   ├── OrderItem.cs           # NamesData (JSONB), RibbonCustomization (JSONB)
@@ -70,7 +72,11 @@ src/
     │   ├── AddDeliveriesAndSuppliers        # Supplier, Delivery, DeliveryItem + DeliveryItemId на StockTransaction
     │   ├── AddSupplierExtraFields           # TaxId, Address, Notes на Supplier
     │   ├── AddStockTransactionOrderId       # OrderId на StockTransaction
-    │   └── AddRoles                         # Role (text[] Pages), Admin.RoleId FK; seed SuperAdmin/Manager/Warehouse
+    │   ├── AddRoles                         # Role (text[] Pages), Admin.RoleId FK; seed SuperAdmin/Manager/Warehouse
+    │   └── AddProductCategoriesTable        # ProductCategories/Subcategories; data-міграція Category string→CategoryId FK
+    ├── Controllers/
+    │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
+    │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
     ├── Data/
     │   ├── AppDbContext.cs        # Global query filters (!IsDeleted) на: User, Order, OrderItem,
     │   │                          # SavedDesign, CartItem, Product, Admin, Supplier, Delivery
@@ -84,13 +90,21 @@ src/
     │                              # DeliveryItemResponse (receiveHistory: ReceiveTransactionInfo[]),
     │                              # ReceiveTransactionInfo, CreateDeliveryRequest, ReceiveDeliveryItemRequest,
     │                              # ReceiveAllRequest, DeliveryQuery
+    ├── DTOs/Admin/
+    │   ├── ProductCategoryDtos.cs   # ProductCategoryResponse, ProductSubcategoryResponse, SaveProductCategoryRequest
+    │   └── DashboardChartResponse.cs # (розширено) SalesByCategoryResponse, SalesCategoryEntry,
+    │                                  # SalesSubcategoryEntry, SalesProductEntry
     └── Services/
+        ├── IProductCategoryService / ProductCategoryService  # CRUD ProductCategories + Subcategories
         ├── IWarehouseService / WarehouseService
         │   # GetStats, GetCategories, GetSubcategories, GetProducts, GetProductDetail,
         │   # AddTransaction (зберігає OrderId, резолвує orderNumber/orderCreatedAt),
         │   # CreateProduct
         │   # CurrentStock = SUM(income) - SUM(outcome) по StockTransactions
         │   # GetProductDetail: резолвує DeliveryId (через DeliveryItems) і OrderId (через Orders) для транзакцій
+        ├── IDashboardService / DashboardService
+        │   # GetSalesByCategoryAsync: агрегує OrderItems по ProductName → join in-memory до Products
+        │   # (OrderItem не має ProductId FK — тільки Name string). period: week/month/year/all
         └── IDeliveryService / DeliveryService
             # GetSuppliers/Create/Update/Delete (soft)
             # GetDeliveries, GetDeliveryDetail (ThenInclude Transactions → ReceiveHistory)
@@ -134,6 +148,23 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 | PUT | /api/v1/admin/roles/{id} | Оновити (SuperAdmin → 400) |
 | DELETE | /api/v1/admin/roles/{id} | Soft delete (SuperAdmin → 400) |
 
+### Категорії продуктів
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/product-categories | Публічний список (з підкатегоріями) |
+| GET | /api/v1/admin/product-categories | Адмін список |
+| POST | /api/v1/admin/product-categories | Створити категорію |
+| PUT | /api/v1/admin/product-categories/{id} | Оновити |
+| DELETE | /api/v1/admin/product-categories/{id} | Видалити |
+| POST | /api/v1/admin/product-categories/{id}/subcategories | Створити підкатегорію |
+| PUT | /api/v1/admin/product-categories/{catId}/subcategories/{id} | Оновити підкатегорію |
+| DELETE | /api/v1/admin/product-categories/{catId}/subcategories/{id} | Видалити підкатегорію |
+
+### Дашборд (додаткові ендпоінти)
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/admin/dashboard/sales-by-category?period= | Продажі за категоріями (week/month/year/all) |
+
 ### Складський облік
 | Метод | Шлях | Опис |
 |-------|------|------|
@@ -167,6 +198,7 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 - **Global query filters** на Delivery і Supplier (як на всіх інших). При завантаженні через Include EF Core застосовує фільтр до JOIN — якщо є ризик null, завантажувати окремо з `IgnoreQueryFilters()`.
 - **EF Core JSONB**: `OwnsOne(e => e.Field, b => { b.ToJson(); })` — NamesData, RibbonCustomization
 - **Soft delete**: `IsDeleted = true`, ніколи не видаляти фізично
+- **ProductCategory seed** (ID 1–4 явні через `ValueGeneratedNever()`): ProductCategories — `ValueGeneratedNever()`. ProductSubcategories — `ValueGeneratedOnAdd()` (IDENTITY). Якщо поставити `ValueGeneratedNever()` на Subcategories — EF Core надсилатиме `Id=0` і кожен INSERT конфліктує по PK.
 - **StockProduct seed** (ID 1–28 явні): після будь-якого re-seeding потрібна міграція `setval(pg_get_serial_sequence('"StockProducts"', 'Id'), MAX(Id), true)`
 - **CurrentStock**: `SUM(income qty) - SUM(outcome qty)` з StockTransactions. Поле `CurrentStock` на `StockVariant` — видалено.
 - **Delivery number**: `DEL-{year}-{COUNT+1:D4}`. Unique index на Number захищає від дублів.
