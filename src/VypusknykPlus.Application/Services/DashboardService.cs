@@ -429,16 +429,33 @@ public class DashboardService : IDashboardService
     {
         var products = await _db.StockProducts
             .Include(p => p.Variants)
-            .ThenInclude(v => v.Transactions)
+            .AsNoTracking()
             .ToListAsync();
+
+        var variantIds = products.SelectMany(p => p.Variants).Select(v => v.Id).ToList();
+        if (variantIds.Count == 0)
+            return new DashboardLowStockResponse();
+
+        var rows = await _db.StockTransactions
+            .Where(t => variantIds.Contains(t.VariantId))
+            .GroupBy(t => new { t.VariantId, t.Type })
+            .Select(g => new { g.Key.VariantId, g.Key.Type, Total = g.Sum(t => t.Quantity) })
+            .ToListAsync();
+
+        var stockDict = variantIds.ToDictionary(
+            id => id,
+            id =>
+            {
+                var inc = rows.FirstOrDefault(r => r.VariantId == id && r.Type == "income")?.Total ?? 0;
+                var out_ = rows.FirstOrDefault(r => r.VariantId == id && r.Type == "outcome")?.Total ?? 0;
+                return inc - out_;
+            });
 
         var items = products
             .Select(p => new
             {
                 p.Name,
-                Stock = p.Variants.Sum(v =>
-                    v.Transactions.Where(t => t.Type == "income").Sum(t => t.Quantity) -
-                    v.Transactions.Where(t => t.Type == "outcome").Sum(t => t.Quantity))
+                Stock = p.Variants.Sum(v => stockDict.GetValueOrDefault(v.Id, 0))
             })
             .Where(p => p.Stock < 10)
             .OrderBy(p => p.Stock)
