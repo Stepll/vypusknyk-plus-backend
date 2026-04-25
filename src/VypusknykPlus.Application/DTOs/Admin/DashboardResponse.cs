@@ -8,6 +8,7 @@ public class DashboardResponse
     public DashboardDeliveriesBlock Deliveries { get; set; } = new();
     public DashboardDesignsBlock Designs { get; set; } = new();
     public List<DashboardTopCategoryBlock> TopProducts { get; set; } = [];
+    public List<DashboardRecentOrder> RecentOrders { get; set; } = [];
 }
 
 public class DashboardRevenueBlock
@@ -20,12 +21,30 @@ public class DashboardRevenueBlock
 
 public class DashboardOrdersBlock
 {
-    public int Accepted { get; set; }
-    public int Production { get; set; }
-    public int Shipped { get; set; }
-    public int Delivered { get; set; }
+    public List<DashboardStatusCount> StatusCounts { get; set; } = [];
     public int NewThisWeek { get; set; }
     public int Stuck { get; set; }
+}
+
+public class DashboardStatusCount
+{
+    public long StatusId { get; set; }
+    public string StatusName { get; set; } = string.Empty;
+    public string StatusColor { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public bool IsFinal { get; set; }
+    public int Count { get; set; }
+}
+
+public class DashboardRecentOrder
+{
+    public long Id { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
+    public string? ClientName { get; set; }
+    public decimal Total { get; set; }
+    public string StatusName { get; set; } = string.Empty;
+    public string StatusColor { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
 }
 
 public class DashboardChartPoint

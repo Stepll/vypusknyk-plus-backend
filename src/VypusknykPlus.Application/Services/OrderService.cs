@@ -66,7 +66,10 @@ public class OrderService : IOrderService
         var order = new Order
         {
             OrderNumber = GenerateOrderNumber(),
-            Status = OrderStatus.Accepted,
+            StatusId = await _db.OrderStatuses
+                .Where(s => s.Name == "Прийнято")
+                .Select(s => s.Id)
+                .FirstAsync(),
             Total = total,
             Delivery = new DeliveryInfo
             {
@@ -178,7 +181,7 @@ public class OrderService : IOrderService
         Id = o.Id,
         OrderNumber = o.OrderNumber,
         Date = o.CreatedAt,
-        Status = o.Status.ToString().ToLower(),
+        Status = o.OrderStatus?.Name ?? string.Empty,
         Items = o.Items.Select(i => new OrderItemResponse
         {
             Name = i.Name,

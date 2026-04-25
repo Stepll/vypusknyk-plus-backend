@@ -11,8 +11,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasKey(o => o.Id);
 
         builder.Property(o => o.OrderNumber).IsRequired().HasMaxLength(20);
-        builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(50);
         builder.Property(o => o.Total).HasPrecision(10, 2);
+
+        builder.HasOne(o => o.OrderStatus)
+            .WithMany(s => s.Orders)
+            .HasForeignKey(o => o.StatusId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(o => o.Payment).HasConversion<string>().HasMaxLength(50);
         builder.Property(o => o.Email).HasMaxLength(256);
         builder.Property(o => o.Comment).HasMaxLength(1000);

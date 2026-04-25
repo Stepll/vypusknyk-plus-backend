@@ -22,11 +22,12 @@ public class AdminService : IAdminService
     {
         var query = _db.Orders
             .Include(o => o.Items)
+            .Include(o => o.OrderStatus)
             .AsNoTracking()
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, true, out var parsed))
-            query = query.Where(o => o.Status == parsed);
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(o => o.OrderStatus.Name == status);
 
         var total = await query.CountAsync();
         var items = await query
@@ -48,6 +49,7 @@ public class AdminService : IAdminService
     {
         var order = await _db.Orders
             .Include(o => o.Items)
+            .Include(o => o.OrderStatus)
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == id);
 
@@ -56,13 +58,13 @@ public class AdminService : IAdminService
 
     public async Task UpdateOrderStatusAsync(long id, string status)
     {
-        if (!Enum.TryParse<OrderStatus>(status, true, out var parsed))
-            throw new ArgumentException($"Невідомий статус: {status}");
+        var orderStatus = await _db.OrderStatuses.FirstOrDefaultAsync(s => s.Name == status)
+            ?? throw new ArgumentException($"Невідомий статус: {status}");
 
         var order = await _db.Orders.FindAsync(id)
             ?? throw new KeyNotFoundException($"Замовлення {id} не знайдено");
 
-        order.Status = parsed;
+        order.StatusId = orderStatus.Id;
         order.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
     }
@@ -304,6 +306,8 @@ public class AdminService : IAdminService
             .AsNoTracking()
             .Include(u => u.Orders)
                 .ThenInclude(o => o.Items)
+            .Include(u => u.Orders)
+                .ThenInclude(o => o.OrderStatus)
             .Include(u => u.SavedDesigns)
             .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -322,7 +326,7 @@ public class AdminService : IAdminService
                 {
                     Id = o.Id,
                     OrderNumber = o.OrderNumber,
-                    Status = o.Status.ToString(),
+                    Status = o.OrderStatus?.Name ?? string.Empty,
                     Total = o.Total,
                     ItemsCount = o.Items.Count,
                     CreatedAt = o.CreatedAt,
@@ -570,7 +574,7 @@ public class AdminService : IAdminService
         Id = o.Id,
         OrderNumber = o.OrderNumber,
         CreatedAt = o.CreatedAt,
-        Status = o.Status.ToString(),
+        Status = o.OrderStatus?.Name ?? string.Empty,
         Total = o.Total,
         IsAnonymous = o.IsAnonymous,
         UserId = o.UserId,

@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderStatus> OrderStatuses => Set<OrderStatus>();
     public DbSet<SavedDesign> SavedDesigns => Set<SavedDesign>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -48,5 +49,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Delivery>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Role>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<InfoPage>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<OrderStatus>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

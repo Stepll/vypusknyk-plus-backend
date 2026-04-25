@@ -28,7 +28,28 @@ public class DashboardService : IDashboardService
             Deliveries = await GetDeliveriesBlockAsync(now),
             Designs = await GetDesignsBlockAsync(weekAgo),
             TopProducts = await GetTopProductsAsync(),
+            RecentOrders = await GetRecentOrdersAsync(),
         };
+    }
+
+    private async Task<List<DashboardRecentOrder>> GetRecentOrdersAsync()
+    {
+        return await _db.Orders
+            .Include(o => o.OrderStatus)
+            .AsNoTracking()
+            .OrderByDescending(o => o.CreatedAt)
+            .Take(5)
+            .Select(o => new DashboardRecentOrder
+            {
+                Id = o.Id,
+                OrderNumber = o.OrderNumber,
+                ClientName = o.IsAnonymous ? null : o.Recipient.FullName,
+                Total = o.Total,
+                StatusName = o.OrderStatus.Name,
+                StatusColor = o.OrderStatus.Color,
+                CreatedAt = o.CreatedAt,
+            })
+            .ToListAsync();
     }
 
     private async Task<DashboardRevenueBlock> GetRevenueBlockAsync(DateTime monthStart, DateTime prevMonthStart)
@@ -44,8 +65,13 @@ public class DashboardService : IDashboardService
         var changePercent = previousMonth == 0 ? 0
             : Math.Round((double)((currentMonth - previousMonth) / previousMonth * 100), 1);
 
+        var finalStatusIds = await _db.OrderStatuses
+            .Where(s => s.IsFinal)
+            .Select(s => s.Id)
+            .ToListAsync();
+
         var shippedDates = await _db.Orders
-            .Where(o => o.Status == OrderStatus.Shipped || o.Status == OrderStatus.Delivered)
+            .Where(o => finalStatusIds.Contains(o.StatusId))
             .Select(o => new { o.CreatedAt, o.UpdatedAt })
             .ToListAsync();
 
@@ -63,24 +89,35 @@ public class DashboardService : IDashboardService
 
     private async Task<DashboardOrdersBlock> GetOrdersBlockAsync(DateTime weekAgo, DateTime stuckThreshold)
     {
-        var counts = await _db.Orders
-            .GroupBy(o => o.Status)
-            .Select(g => new { Status = g.Key, Count = g.Count() })
+        var statuses = await _db.OrderStatuses
+            .AsNoTracking()
+            .OrderBy(s => s.SortOrder)
             .ToListAsync();
 
-        var dict = counts.ToDictionary(x => x.Status, x => x.Count);
+        var counts = await _db.Orders
+            .GroupBy(o => o.StatusId)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var countDict = counts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        var finalStatusIds = statuses.Where(s => s.IsFinal).Select(s => s.Id).ToList();
 
         var newThisWeek = await _db.Orders.CountAsync(o => o.CreatedAt >= weekAgo);
-
         var stuck = await _db.Orders.CountAsync(
-            o => o.Status != OrderStatus.Delivered && o.UpdatedAt < stuckThreshold);
+            o => !finalStatusIds.Contains(o.StatusId) && o.UpdatedAt < stuckThreshold);
 
         return new DashboardOrdersBlock
         {
-            Accepted = dict.GetValueOrDefault(OrderStatus.Accepted),
-            Production = dict.GetValueOrDefault(OrderStatus.Production),
-            Shipped = dict.GetValueOrDefault(OrderStatus.Shipped),
-            Delivered = dict.GetValueOrDefault(OrderStatus.Delivered),
+            StatusCounts = statuses.Select(s => new DashboardStatusCount
+            {
+                StatusId = s.Id,
+                StatusName = s.Name,
+                StatusColor = s.Color,
+                SortOrder = s.SortOrder,
+                IsFinal = s.IsFinal,
+                Count = countDict.GetValueOrDefault(s.Id, 0),
+            }).ToList(),
             NewThisWeek = newThisWeek,
             Stuck = stuck,
         };

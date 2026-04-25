@@ -2,14 +2,6 @@ using VypusknykPlus.Application.ValueObjects;
 
 namespace VypusknykPlus.Application.Entities;
 
-public enum OrderStatus
-{
-    Accepted,
-    Production,
-    Shipped,
-    Delivered
-}
-
 public enum PaymentMethod
 {
     Cod,
@@ -19,7 +11,8 @@ public enum PaymentMethod
 public class Order : BaseEntity
 {
     public string OrderNumber { get; set; } = string.Empty;
-    public OrderStatus Status { get; set; }
+    public long StatusId { get; set; }
+    public OrderStatus OrderStatus { get; set; } = null!;
     public decimal Total { get; set; }
 
     public DeliveryInfo Delivery { get; set; } = new();
