@@ -9,7 +9,7 @@ public class ProductSubcategoryConfiguration : IEntityTypeConfiguration<ProductS
     public void Configure(EntityTypeBuilder<ProductSubcategory> builder)
     {
         builder.HasKey(s => s.Id);
-        builder.Property(s => s.Id).ValueGeneratedNever();
+        builder.Property(s => s.Id).ValueGeneratedOnAdd();
         builder.Property(s => s.Name).IsRequired().HasMaxLength(100);
 
         builder.HasMany(s => s.Products)
