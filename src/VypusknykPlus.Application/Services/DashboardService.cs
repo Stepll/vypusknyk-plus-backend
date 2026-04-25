@@ -427,14 +427,15 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardLowStockResponse> GetLowStockAsync()
     {
-        var products = await _db.StockProducts
-            .Include(p => p.Variants)
+        var variants = await _db.StockVariants
+            .Include(v => v.Product)
             .AsNoTracking()
             .ToListAsync();
 
-        var variantIds = products.SelectMany(p => p.Variants).Select(v => v.Id).ToList();
-        if (variantIds.Count == 0)
+        if (variants.Count == 0)
             return new DashboardLowStockResponse();
+
+        var variantIds = variants.Select(v => v.Id).ToList();
 
         var rows = await _db.StockTransactions
             .Where(t => variantIds.Contains(t.VariantId))
@@ -451,16 +452,26 @@ public class DashboardService : IDashboardService
                 return inc - out_;
             });
 
-        var items = products
-            .Select(p => new
+        var items = variants
+            .Select(v => new
             {
-                p.Name,
-                Stock = p.Variants.Sum(v => stockDict.GetValueOrDefault(v.Id, 0))
+                v.Product.Name,
+                v.Product.HasMaterial,
+                v.Product.HasColor,
+                v.Material,
+                v.Color,
+                Stock = stockDict.GetValueOrDefault(v.Id, 0),
             })
-            .Where(p => p.Stock < 10)
-            .OrderBy(p => p.Stock)
+            .Where(v => v.Stock < 10)
+            .OrderBy(v => v.Stock)
             .Take(5)
-            .Select(p => new DashboardLowStockItem { Name = p.Name, Stock = p.Stock })
+            .Select(v => new DashboardLowStockItem
+            {
+                Name = v.Name,
+                Material = v.HasMaterial ? v.Material : string.Empty,
+                Color = v.HasColor ? v.Color : string.Empty,
+                Stock = v.Stock,
+            })
             .ToList();
 
         return new DashboardLowStockResponse { Items = items };

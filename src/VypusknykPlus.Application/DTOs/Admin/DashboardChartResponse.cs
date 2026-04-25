@@ -45,5 +45,7 @@ public class DashboardLowStockResponse
 public class DashboardLowStockItem
 {
     public string Name { get; set; } = string.Empty;
+    public string Material { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
     public int Stock { get; set; }
 }
