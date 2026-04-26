@@ -38,6 +38,8 @@ public class AdminRecipientResponse
 public class AdminDeliveryResponse
 {
     public string Method { get; set; } = string.Empty;
+    public string MethodName { get; set; } = string.Empty;
     public string? City { get; set; }
     public string? Warehouse { get; set; }
+    public string? PostalCode { get; set; }
 }

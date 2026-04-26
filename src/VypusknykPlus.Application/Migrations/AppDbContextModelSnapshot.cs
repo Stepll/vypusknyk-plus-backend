@@ -227,6 +227,52 @@ namespace VypusknykPlus.Application.Migrations
                     b.ToTable("InfoPages");
                 });
 
+            modelBuilder.Entity("VypusknykPlus.Application.Entities.DeliveryMethod", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CheckoutFields")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Settings")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("DeliveryMethods");
+                });
+
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -241,6 +287,9 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("DeliveryMethodId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -280,6 +329,8 @@ namespace VypusknykPlus.Application.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeliveryMethodId");
 
                     b.HasIndex("GuestToken");
 
@@ -1705,6 +1756,12 @@ namespace VypusknykPlus.Application.Migrations
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Order", b =>
                 {
+                    b.HasOne("VypusknykPlus.Application.Entities.DeliveryMethod", "DeliveryMethod")
+                        .WithMany("Orders")
+                        .HasForeignKey("DeliveryMethodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("VypusknykPlus.Application.Entities.OrderStatus", "OrderStatus")
                         .WithMany("Orders")
                         .HasForeignKey("StatusId")
@@ -1724,11 +1781,6 @@ namespace VypusknykPlus.Application.Migrations
                             b1.Property<string>("City")
                                 .HasMaxLength(200)
                                 .HasColumnType("character varying(200)");
-
-                            b1.Property<string>("Method")
-                                .IsRequired()
-                                .HasMaxLength(50)
-                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("PostalCode")
                                 .HasMaxLength(10)
@@ -1771,6 +1823,8 @@ namespace VypusknykPlus.Application.Migrations
 
                     b.Navigation("Delivery")
                         .IsRequired();
+
+                    b.Navigation("DeliveryMethod");
 
                     b.Navigation("OrderStatus");
 
@@ -2115,6 +2169,11 @@ namespace VypusknykPlus.Application.Migrations
             modelBuilder.Entity("VypusknykPlus.Application.Entities.DeliveryItem", b =>
                 {
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("VypusknykPlus.Application.Entities.DeliveryMethod", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Order", b =>

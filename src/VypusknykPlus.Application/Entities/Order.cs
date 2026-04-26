@@ -18,6 +18,9 @@ public class Order : BaseEntity
     public DeliveryInfo Delivery { get; set; } = new();
     public RecipientInfo Recipient { get; set; } = new();
 
+    public long DeliveryMethodId { get; set; }
+    public DeliveryMethod DeliveryMethod { get; set; } = null!;
+
     public PaymentMethod Payment { get; set; }
     public string? Email { get; set; }
     public string? Comment { get; set; }

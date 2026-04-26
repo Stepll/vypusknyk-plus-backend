@@ -17,13 +17,18 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .WithMany(s => s.Orders)
             .HasForeignKey(o => o.StatusId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(o => o.DeliveryMethod)
+            .WithMany(dm => dm.Orders)
+            .HasForeignKey(o => o.DeliveryMethodId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(o => o.Payment).HasConversion<string>().HasMaxLength(50);
         builder.Property(o => o.Email).HasMaxLength(256);
         builder.Property(o => o.Comment).HasMaxLength(1000);
 
         builder.OwnsOne(o => o.Delivery, d =>
         {
-            d.Property(x => x.Method).HasConversion<string>().HasMaxLength(50);
             d.Property(x => x.City).HasMaxLength(200);
             d.Property(x => x.Warehouse).HasMaxLength(200);
             d.Property(x => x.PostalCode).HasMaxLength(10);
@@ -46,5 +51,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.UserId);
         builder.HasIndex(o => o.GuestToken);
         builder.HasIndex(o => o.OrderNumber).IsUnique();
+        builder.HasIndex(o => o.DeliveryMethodId);
     }
 }

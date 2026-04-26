@@ -23,6 +23,7 @@ public class AdminService : IAdminService
         var query = _db.Orders
             .Include(o => o.Items)
             .Include(o => o.OrderStatus)
+            .Include(o => o.DeliveryMethod)
             .AsNoTracking()
             .AsQueryable();
 
@@ -50,6 +51,7 @@ public class AdminService : IAdminService
         var order = await _db.Orders
             .Include(o => o.Items)
             .Include(o => o.OrderStatus)
+            .Include(o => o.DeliveryMethod)
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == id);
 
@@ -327,6 +329,8 @@ public class AdminService : IAdminService
                 .ThenInclude(o => o.Items)
             .Include(u => u.Orders)
                 .ThenInclude(o => o.OrderStatus)
+            .Include(u => u.Orders)
+                .ThenInclude(o => o.DeliveryMethod)
             .Include(u => u.SavedDesigns)
             .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -610,9 +614,11 @@ public class AdminService : IAdminService
         },
         Delivery = new AdminDeliveryResponse
         {
-            Method = o.Delivery.Method.ToString(),
+            Method = o.DeliveryMethod?.Slug ?? string.Empty,
+            MethodName = o.DeliveryMethod?.Name ?? string.Empty,
             City = o.Delivery.City,
             Warehouse = o.Delivery.Warehouse,
+            PostalCode = o.Delivery.PostalCode,
         },
         Items = o.Items.Select(i => new AdminOrderItemResponse
         {

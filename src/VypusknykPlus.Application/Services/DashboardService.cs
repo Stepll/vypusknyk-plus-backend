@@ -343,10 +343,10 @@ public class DashboardService : IDashboardService
 
         var deliveryMethods = await _db.Orders
             .Where(o => o.CreatedAt >= start)
-            .GroupBy(o => o.Delivery.Method)
+            .GroupBy(o => new { o.DeliveryMethod.Slug, o.DeliveryMethod.Name })
             .Select(g => new DashboardDistributionItem
             {
-                Key = g.Key.ToString(),
+                Key = g.Key.Slug,
                 Count = g.Count(),
             })
             .ToListAsync();

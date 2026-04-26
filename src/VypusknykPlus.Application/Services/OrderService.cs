@@ -22,12 +22,9 @@ public class OrderService : IOrderService
 
     public async Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request)
     {
-        var deliveryMethod = request.Delivery.Method.ToLower() switch
-        {
-            "nova-poshta" => DeliveryMethod.NovaPoshta,
-            "ukrposhta" => DeliveryMethod.Ukrposhta,
-            _ => throw new ArgumentException("Невідомий метод доставки")
-        };
+        var deliveryMethod = await _db.DeliveryMethods
+            .FirstOrDefaultAsync(dm => dm.Slug == request.Delivery.Method.ToLower() && dm.IsEnabled)
+            ?? throw new ArgumentException("Невідомий або неактивний метод доставки");
 
         var paymentMethod = request.Payment.ToLower() switch
         {
@@ -72,9 +69,10 @@ public class OrderService : IOrderService
                 .Select(s => s.Id)
                 .FirstAsync(),
             Total = total,
+            DeliveryMethodId = deliveryMethod.Id,
+            DeliveryMethod = deliveryMethod,
             Delivery = new DeliveryInfo
             {
-                Method = deliveryMethod,
                 City = request.Delivery.City,
                 Warehouse = request.Delivery.Warehouse,
                 PostalCode = request.Delivery.PostalCode
@@ -122,6 +120,7 @@ public class OrderService : IOrderService
     {
         var orders = await _db.Orders
             .Include(o => o.Items)
+            .Include(o => o.DeliveryMethod)
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
@@ -136,6 +135,7 @@ public class OrderService : IOrderService
     {
         var order = await _db.Orders
             .Include(o => o.Items)
+            .Include(o => o.DeliveryMethod)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
 
         return order is null ? null : MapToResponse(order);
@@ -145,6 +145,7 @@ public class OrderService : IOrderService
     {
         var orders = await _db.Orders
             .Include(o => o.Items)
+            .Include(o => o.DeliveryMethod)
             .Where(o => o.GuestToken == guestToken)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
@@ -192,12 +193,7 @@ public class OrderService : IOrderService
         Total = o.Total,
         Delivery = new OrderDeliveryResponse
         {
-            Method = o.Delivery.Method switch
-            {
-                DeliveryMethod.NovaPoshta => "nova-poshta",
-                DeliveryMethod.Ukrposhta => "ukrposhta",
-                _ => o.Delivery.Method.ToString()
-            },
+            Method = o.DeliveryMethod?.Slug ?? string.Empty,
             City = o.Delivery.City,
             Warehouse = o.Delivery.Warehouse,
             PostalCode = o.Delivery.PostalCode
