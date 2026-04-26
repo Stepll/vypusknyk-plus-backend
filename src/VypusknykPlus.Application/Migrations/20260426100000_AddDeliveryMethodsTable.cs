@@ -1,12 +1,16 @@
 using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using VypusknykPlus.Application.Data;
 
 #nullable disable
 
 namespace VypusknykPlus.Application.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260426100000_AddDeliveryMethodsTable")]
     public partial class AddDeliveryMethodsTable : Migration
     {
         /// <inheritdoc />
@@ -41,12 +45,10 @@ namespace VypusknykPlus.Application.Migrations
 
             // 2. Seed Nova Poshta (id=1) and Ukrposhta (id=2)
             migrationBuilder.Sql(
-                @"INSERT INTO ""DeliveryMethods"" (""Id"", ""Name"", ""Slug"", ""IsEnabled"", ""Settings"", ""CheckoutFields"", ""CreatedAt"", ""UpdatedAt"", ""IsDeleted"")
-                OVERRIDING SYSTEM VALUE
+                @"INSERT INTO ""DeliveryMethods"" (""Name"", ""Slug"", ""IsEnabled"", ""Settings"", ""CheckoutFields"", ""CreatedAt"", ""UpdatedAt"", ""IsDeleted"")
                 VALUES
-                    (1, 'Нова Пошта', 'nova-poshta', true, '{}', '[{""key"":""city"",""label"":""Місто"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""},{""key"":""warehouse"",""label"":""Відділення або поштомат"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""}]', NOW(), NOW(), false),
-                    (2, 'Укрпошта',   'ukrposhta',   true, '{}', '[{""key"":""postalCode"",""label"":""Поштовий індекс"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""}]', NOW(), NOW(), false);
-                SELECT setval(pg_get_serial_sequence('""DeliveryMethods""', 'Id'), 2);");
+                    ('Нова Пошта', 'nova-poshta', true, '{}', '[{""key"":""city"",""label"":""Місто"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""},{""key"":""warehouse"",""label"":""Відділення або поштомат"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""}]', NOW(), NOW(), false),
+                    ('Укрпошта',   'ukrposhta',   true, '{}', '[{""key"":""postalCode"",""label"":""Поштовий індекс"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""}]', NOW(), NOW(), false);");
 
             // 3. Add DeliveryMethodId nullable to Orders
             migrationBuilder.AddColumn<long>(
