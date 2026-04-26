@@ -9,14 +9,6 @@ namespace VypusknykPlus.Application.Migrations
     /// <inheritdoc />
     public partial class AddDeliveryMethodsTable : Migration
     {
-        private const string NovaPoshtaFields = """
-            [{"key":"city","label":"Місто","type":"input","required":true,"isEnabled":true,"optionsJson":""},{"key":"warehouse","label":"Відділення або поштомат","type":"input","required":true,"isEnabled":true,"optionsJson":""}]
-            """;
-
-        private const string UkrPoshtaFields = """
-            [{"key":"postalCode","label":"Поштовий індекс","type":"input","required":true,"isEnabled":true,"optionsJson":""}]
-            """;
-
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -48,14 +40,13 @@ namespace VypusknykPlus.Application.Migrations
                 unique: true);
 
             // 2. Seed Nova Poshta (id=1) and Ukrposhta (id=2)
-            migrationBuilder.Sql($"""
-                INSERT INTO "DeliveryMethods" ("Id", "Name", "Slug", "IsEnabled", "Settings", "CheckoutFields", "CreatedAt", "UpdatedAt", "IsDeleted")
+            migrationBuilder.Sql(
+                @"INSERT INTO ""DeliveryMethods"" (""Id"", ""Name"", ""Slug"", ""IsEnabled"", ""Settings"", ""CheckoutFields"", ""CreatedAt"", ""UpdatedAt"", ""IsDeleted"")
                 OVERRIDING SYSTEM VALUE
                 VALUES
-                    (1, 'Нова Пошта', 'nova-poshta', true, '{{}}', '{NovaPoshtaFields.Trim()}', NOW(), NOW(), false),
-                    (2, 'Укрпошта',   'ukrposhta',   true, '{{}}', '{UkrPoshtaFields.Trim()}',  NOW(), NOW(), false);
-                SELECT setval(pg_get_serial_sequence('"DeliveryMethods"', 'Id'), 2);
-            """);
+                    (1, 'Нова Пошта', 'nova-poshta', true, '{}', '[{""key"":""city"",""label"":""Місто"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""},{""key"":""warehouse"",""label"":""Відділення або поштомат"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""}]', NOW(), NOW(), false),
+                    (2, 'Укрпошта',   'ukrposhta',   true, '{}', '[{""key"":""postalCode"",""label"":""Поштовий індекс"",""type"":""input"",""required"":true,""isEnabled"":true,""optionsJson"":""""}]', NOW(), NOW(), false);
+                SELECT setval(pg_get_serial_sequence('""DeliveryMethods""', 'Id'), 2);");
 
             // 3. Add DeliveryMethodId nullable to Orders
             migrationBuilder.AddColumn<long>(
@@ -65,13 +56,12 @@ namespace VypusknykPlus.Application.Migrations
                 nullable: true);
 
             // 4. Map old Delivery_Method string to new FK
-            migrationBuilder.Sql("""
-                UPDATE "Orders" SET "DeliveryMethodId" = CASE "Delivery_Method"
+            migrationBuilder.Sql(
+                @"UPDATE ""Orders"" SET ""DeliveryMethodId"" = CASE ""Delivery_Method""
                     WHEN 'NovaPoshta' THEN 1
                     WHEN 'Ukrposhta'  THEN 2
                     ELSE 1
-                END;
-            """);
+                END;");
 
             // 5. Make NOT NULL
             migrationBuilder.AlterColumn<long>(
@@ -122,13 +112,12 @@ namespace VypusknykPlus.Application.Migrations
                 nullable: false,
                 defaultValue: "");
 
-            migrationBuilder.Sql("""
-                UPDATE "Orders" SET "Delivery_Method" = CASE "DeliveryMethodId"
+            migrationBuilder.Sql(
+                @"UPDATE ""Orders"" SET ""Delivery_Method"" = CASE ""DeliveryMethodId""
                     WHEN 1 THEN 'NovaPoshta'
                     WHEN 2 THEN 'Ukrposhta'
                     ELSE 'NovaPoshta'
-                END;
-            """);
+                END;");
 
             migrationBuilder.DropColumn(
                 name: "DeliveryMethodId",
