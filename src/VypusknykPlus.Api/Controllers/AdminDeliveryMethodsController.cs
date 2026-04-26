@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.DTOs.Admin;
+using VypusknykPlus.Application.Entities;
 
 namespace VypusknykPlus.Api.Controllers;
 
@@ -49,7 +50,7 @@ public class AdminDeliveryMethodsController : ControllerBase
         return Ok(Map(method));
     }
 
-    private static DeliveryMethodResponse Map(Entities.DeliveryMethod m)
+    private static DeliveryMethodResponse Map(DeliveryMethod m)
     {
         var fields = new List<DeliveryCheckoutFieldDto>();
         try { fields = JsonSerializer.Deserialize<List<DeliveryCheckoutFieldDto>>(m.CheckoutFields, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? []; }
