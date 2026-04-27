@@ -86,10 +86,19 @@ public class AdminRibbonEmblemsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id:long}/svg")]
+    [HttpPost("{id:long}/svg/left")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(2 * 1024 * 1024)]
-    public async Task<IActionResult> UploadSvg(long id, IFormFile svg)
+    public Task<IActionResult> UploadSvgLeft(long id, IFormFile svg) =>
+        UploadSvgSide(id, svg, "left");
+
+    [HttpPost("{id:long}/svg/right")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(2 * 1024 * 1024)]
+    public Task<IActionResult> UploadSvgRight(long id, IFormFile svg) =>
+        UploadSvgSide(id, svg, "right");
+
+    private async Task<IActionResult> UploadSvgSide(long id, IFormFile svg, string side)
     {
         if (svg is null || svg.Length == 0)
             return BadRequest(new { message = "No file provided." });
@@ -100,14 +109,16 @@ public class AdminRibbonEmblemsController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         if (e is null) return NotFound();
 
-        if (!string.IsNullOrEmpty(e.SvgKey))
-            await _imageService.DeleteAsync(e.SvgKey);
+        var oldKey = side == "left" ? e.SvgKeyLeft : e.SvgKeyRight;
+        if (!string.IsNullOrEmpty(oldKey))
+            await _imageService.DeleteAsync(oldKey);
 
-        var objectKey = $"emblems/{id}.svg";
+        var objectKey = $"emblems/{id}-{side}.svg";
         await using var stream = svg.OpenReadStream();
         await _imageService.UploadAsync(objectKey, stream, "image/svg+xml");
 
-        e.SvgKey    = objectKey;
+        if (side == "left") e.SvgKeyLeft  = objectKey;
+        else                e.SvgKeyRight = objectKey;
         e.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
@@ -116,11 +127,12 @@ public class AdminRibbonEmblemsController : ControllerBase
 
     private RibbonEmblemResponse Map(RibbonEmblem e) => new()
     {
-        Id        = e.Id,
-        Name      = e.Name,
-        Slug      = e.Slug,
-        SvgUrl    = _imageService.GetPublicUrl(e.SvgKey),
-        IsActive  = e.IsActive,
-        SortOrder = e.SortOrder,
+        Id          = e.Id,
+        Name        = e.Name,
+        Slug        = e.Slug,
+        SvgUrlLeft  = _imageService.GetPublicUrl(e.SvgKeyLeft),
+        SvgUrlRight = _imageService.GetPublicUrl(e.SvgKeyRight),
+        IsActive    = e.IsActive,
+        SortOrder   = e.SortOrder,
     };
 }

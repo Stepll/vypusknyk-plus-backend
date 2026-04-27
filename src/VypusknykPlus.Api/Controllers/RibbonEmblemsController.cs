@@ -28,12 +28,13 @@ public class RibbonEmblemsController : ControllerBase
             .ToListAsync();
         return Ok(rows.Select(e => new RibbonEmblemResponse
         {
-            Id        = e.Id,
-            Name      = e.Name,
-            Slug      = e.Slug,
-            SvgUrl    = _imageService.GetPublicUrl(e.SvgKey),
-            IsActive  = e.IsActive,
-            SortOrder = e.SortOrder,
+            Id          = e.Id,
+            Name        = e.Name,
+            Slug        = e.Slug,
+            SvgUrlLeft  = _imageService.GetPublicUrl(e.SvgKeyLeft),
+            SvgUrlRight = _imageService.GetPublicUrl(e.SvgKeyRight),
+            IsActive    = e.IsActive,
+            SortOrder   = e.SortOrder,
         }));
     }
 }
