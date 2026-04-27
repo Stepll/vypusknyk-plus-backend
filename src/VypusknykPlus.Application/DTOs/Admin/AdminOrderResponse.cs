@@ -24,6 +24,7 @@ public class AdminOrderResponse
     public string? Email { get; set; }
     public string? Comment { get; set; }
     public string Payment { get; set; } = string.Empty;
+    public string PaymentMethodName { get; set; } = string.Empty;
     public AdminRecipientResponse Recipient { get; set; } = new();
     public AdminDeliveryResponse Delivery { get; set; } = new();
     public List<AdminOrderItemResponse> Items { get; set; } = [];

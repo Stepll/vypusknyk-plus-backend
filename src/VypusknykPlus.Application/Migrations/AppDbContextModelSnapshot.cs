@@ -273,6 +273,44 @@ namespace VypusknykPlus.Application.Migrations
                     b.ToTable("DeliveryMethods");
                 });
 
+            modelBuilder.Entity("VypusknykPlus.Application.Entities.PaymentMethod", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("PaymentMethods");
+                });
+
             modelBuilder.Entity("VypusknykPlus.Application.Entities.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -310,10 +348,8 @@ namespace VypusknykPlus.Application.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<string>("Payment")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<long>("PaymentMethodId")
+                        .HasColumnType("bigint");
 
                     b.Property<long>("StatusId")
                         .HasColumnType("bigint");
@@ -333,6 +369,8 @@ namespace VypusknykPlus.Application.Migrations
                     b.HasIndex("DeliveryMethodId");
 
                     b.HasIndex("GuestToken");
+
+                    b.HasIndex("PaymentMethodId");
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
@@ -1762,6 +1800,12 @@ namespace VypusknykPlus.Application.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("VypusknykPlus.Application.Entities.PaymentMethod", "PaymentMethod")
+                        .WithMany("Orders")
+                        .HasForeignKey("PaymentMethodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("VypusknykPlus.Application.Entities.OrderStatus", "OrderStatus")
                         .WithMany("Orders")
                         .HasForeignKey("StatusId")
@@ -1827,6 +1871,8 @@ namespace VypusknykPlus.Application.Migrations
                     b.Navigation("DeliveryMethod");
 
                     b.Navigation("OrderStatus");
+
+                    b.Navigation("PaymentMethod");
 
                     b.Navigation("Recipient")
                         .IsRequired();
@@ -2172,6 +2218,11 @@ namespace VypusknykPlus.Application.Migrations
                 });
 
             modelBuilder.Entity("VypusknykPlus.Application.Entities.DeliveryMethod", b =>
+                {
+                    b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("VypusknykPlus.Application.Entities.PaymentMethod", b =>
                 {
                     b.Navigation("Orders");
                 });

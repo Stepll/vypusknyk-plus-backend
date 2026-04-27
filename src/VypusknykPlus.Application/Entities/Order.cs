@@ -2,12 +2,6 @@ using VypusknykPlus.Application.ValueObjects;
 
 namespace VypusknykPlus.Application.Entities;
 
-public enum PaymentMethod
-{
-    Cod,
-    Online
-}
-
 public class Order : BaseEntity
 {
     public string OrderNumber { get; set; } = string.Empty;
@@ -21,7 +15,9 @@ public class Order : BaseEntity
     public long DeliveryMethodId { get; set; }
     public DeliveryMethod DeliveryMethod { get; set; } = null!;
 
-    public PaymentMethod Payment { get; set; }
+    public long PaymentMethodId { get; set; }
+    public PaymentMethod PaymentMethod { get; set; } = null!;
+
     public string? Email { get; set; }
     public string? Comment { get; set; }
 

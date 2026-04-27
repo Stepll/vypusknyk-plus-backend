@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<DeliveryItem> DeliveryItems => Set<DeliveryItem>();
 
     public DbSet<DeliveryMethod> DeliveryMethods => Set<DeliveryMethod>();
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
     public DbSet<InfoPage> InfoPages => Set<InfoPage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -55,5 +56,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<InfoPage>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<OrderStatus>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<DeliveryMethod>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<PaymentMethod>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

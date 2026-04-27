@@ -23,7 +23,10 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasForeignKey(o => o.DeliveryMethodId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Property(o => o.Payment).HasConversion<string>().HasMaxLength(50);
+        builder.HasOne(o => o.PaymentMethod)
+            .WithMany(pm => pm.Orders)
+            .HasForeignKey(o => o.PaymentMethodId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(o => o.Email).HasMaxLength(256);
         builder.Property(o => o.Comment).HasMaxLength(1000);
 
@@ -52,5 +55,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.GuestToken);
         builder.HasIndex(o => o.OrderNumber).IsUnique();
         builder.HasIndex(o => o.DeliveryMethodId);
+        builder.HasIndex(o => o.PaymentMethodId);
     }
 }

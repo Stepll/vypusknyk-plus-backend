@@ -26,12 +26,9 @@ public class OrderService : IOrderService
             .FirstOrDefaultAsync(dm => dm.Slug == request.Delivery.Method.ToLower() && dm.IsEnabled)
             ?? throw new ArgumentException("Невідомий або неактивний метод доставки");
 
-        var paymentMethod = request.Payment.ToLower() switch
-        {
-            "cod" => PaymentMethod.Cod,
-            "online" => PaymentMethod.Online,
-            _ => throw new ArgumentException("Невідомий метод оплати")
-        };
+        var paymentMethod = await _db.PaymentMethods
+            .FirstOrDefaultAsync(pm => pm.Slug == request.Payment.ToLower() && pm.IsEnabled)
+            ?? throw new ArgumentException("Невідомий або неактивний метод оплати");
 
         var productIds = request.Items
             .Where(i => i.ProductId.HasValue)
@@ -82,7 +79,8 @@ public class OrderService : IOrderService
                 FullName = request.Recipient.FullName,
                 Phone = request.Recipient.Phone
             },
-            Payment = paymentMethod,
+            PaymentMethodId = paymentMethod.Id,
+            PaymentMethod = paymentMethod,
             Email = request.Email,
             Comment = request.Comment,
             UserId = userId,
@@ -121,6 +119,7 @@ public class OrderService : IOrderService
         var orders = await _db.Orders
             .Include(o => o.Items)
             .Include(o => o.DeliveryMethod)
+            .Include(o => o.PaymentMethod)
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
@@ -136,6 +135,7 @@ public class OrderService : IOrderService
         var order = await _db.Orders
             .Include(o => o.Items)
             .Include(o => o.DeliveryMethod)
+            .Include(o => o.PaymentMethod)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
 
         return order is null ? null : MapToResponse(order);
@@ -146,6 +146,7 @@ public class OrderService : IOrderService
         var orders = await _db.Orders
             .Include(o => o.Items)
             .Include(o => o.DeliveryMethod)
+            .Include(o => o.PaymentMethod)
             .Where(o => o.GuestToken == guestToken)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
@@ -203,12 +204,7 @@ public class OrderService : IOrderService
             FullName = o.Recipient.FullName,
             Phone = o.Recipient.Phone
         },
-        Payment = o.Payment switch
-        {
-            PaymentMethod.Cod => "cod",
-            PaymentMethod.Online => "online",
-            _ => o.Payment.ToString()
-        },
+        Payment = o.PaymentMethod?.Slug ?? string.Empty,
         Comment = o.Comment
     };
 }

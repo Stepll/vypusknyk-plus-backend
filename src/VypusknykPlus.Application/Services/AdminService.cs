@@ -24,6 +24,7 @@ public class AdminService : IAdminService
             .Include(o => o.Items)
             .Include(o => o.OrderStatus)
             .Include(o => o.DeliveryMethod)
+            .Include(o => o.PaymentMethod)
             .AsNoTracking()
             .AsQueryable();
 
@@ -52,6 +53,7 @@ public class AdminService : IAdminService
             .Include(o => o.Items)
             .Include(o => o.OrderStatus)
             .Include(o => o.DeliveryMethod)
+            .Include(o => o.PaymentMethod)
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == id);
 
@@ -331,6 +333,8 @@ public class AdminService : IAdminService
                 .ThenInclude(o => o.OrderStatus)
             .Include(u => u.Orders)
                 .ThenInclude(o => o.DeliveryMethod)
+            .Include(u => u.Orders)
+                .ThenInclude(o => o.PaymentMethod)
             .Include(u => u.SavedDesigns)
             .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -606,7 +610,8 @@ public class AdminService : IAdminService
         UserId = o.UserId,
         Email = o.Email,
         Comment = o.Comment,
-        Payment = o.Payment.ToString(),
+        Payment = o.PaymentMethod?.Slug ?? string.Empty,
+        PaymentMethodName = o.PaymentMethod?.Name ?? string.Empty,
         Recipient = new AdminRecipientResponse
         {
             FullName = o.Recipient.FullName,

@@ -66,8 +66,6 @@ public class CreateOrderRecipientRequestValidator : AbstractValidator<CreateOrde
 
 public class CreateOrderRequestValidator : AbstractValidator<CreateOrderRequest>
 {
-    private static readonly string[] ValidPayments = ["cod", "online"];
-
     public CreateOrderRequestValidator()
     {
         RuleFor(x => x.Items)
@@ -85,9 +83,7 @@ public class CreateOrderRequestValidator : AbstractValidator<CreateOrderRequest>
             .SetValidator(new CreateOrderRecipientRequestValidator());
 
         RuleFor(x => x.Payment)
-            .NotEmpty().WithMessage("Метод оплати обов'язковий")
-            .Must(p => ValidPayments.Contains(p))
-            .WithMessage("Метод оплати має бути 'cod' або 'online'");
+            .NotEmpty().WithMessage("Метод оплати обов'язковий");
 
         RuleFor(x => x.Email)
             .EmailAddress().WithMessage("Невалідний email")
