@@ -333,6 +333,12 @@ namespace VypusknykPlus.Application.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsForExtraText")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsForMainText")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)

@@ -40,14 +40,16 @@ public class AdminRibbonPrintColorsController : ControllerBase
     {
         var c = new RibbonPrintColor
         {
-            Name          = req.Name,
-            Slug          = req.Slug,
-            Hex           = req.Hex,
-            PriceModifier = req.PriceModifier,
-            IsActive      = req.IsActive,
-            SortOrder     = req.SortOrder,
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow,
+            Name           = req.Name,
+            Slug           = req.Slug,
+            Hex            = req.Hex,
+            PriceModifier  = req.PriceModifier,
+            IsForMainText  = req.IsForMainText,
+            IsForExtraText = req.IsForExtraText,
+            IsActive       = req.IsActive,
+            SortOrder      = req.SortOrder,
+            CreatedAt      = DateTime.UtcNow,
+            UpdatedAt      = DateTime.UtcNow,
         };
         _db.RibbonPrintColors.Add(c);
         await _db.SaveChangesAsync();
@@ -61,13 +63,15 @@ public class AdminRibbonPrintColorsController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         if (c is null) return NotFound();
 
-        c.Name          = req.Name;
-        c.Slug          = req.Slug;
-        c.Hex           = req.Hex;
-        c.PriceModifier = req.PriceModifier;
-        c.IsActive      = req.IsActive;
-        c.SortOrder     = req.SortOrder;
-        c.UpdatedAt     = DateTime.UtcNow;
+        c.Name           = req.Name;
+        c.Slug           = req.Slug;
+        c.Hex            = req.Hex;
+        c.PriceModifier  = req.PriceModifier;
+        c.IsForMainText  = req.IsForMainText;
+        c.IsForExtraText = req.IsForExtraText;
+        c.IsActive       = req.IsActive;
+        c.SortOrder      = req.SortOrder;
+        c.UpdatedAt      = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(Map(c));
     }
@@ -86,12 +90,14 @@ public class AdminRibbonPrintColorsController : ControllerBase
 
     private static RibbonPrintColorResponse Map(RibbonPrintColor c) => new()
     {
-        Id            = c.Id,
-        Name          = c.Name,
-        Slug          = c.Slug,
-        Hex           = c.Hex,
-        PriceModifier = c.PriceModifier,
-        IsActive      = c.IsActive,
-        SortOrder     = c.SortOrder,
+        Id             = c.Id,
+        Name           = c.Name,
+        Slug           = c.Slug,
+        Hex            = c.Hex,
+        PriceModifier  = c.PriceModifier,
+        IsForMainText  = c.IsForMainText,
+        IsForExtraText = c.IsForExtraText,
+        IsActive       = c.IsActive,
+        SortOrder      = c.SortOrder,
     };
 }

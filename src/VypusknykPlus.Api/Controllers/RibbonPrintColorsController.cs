@@ -20,13 +20,15 @@ public class RibbonPrintColorsController : ControllerBase
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Id)
             .Select(c => new RibbonPrintColorResponse
             {
-                Id            = c.Id,
-                Name          = c.Name,
-                Slug          = c.Slug,
-                Hex           = c.Hex,
-                PriceModifier = c.PriceModifier,
-                IsActive      = c.IsActive,
-                SortOrder     = c.SortOrder,
+                Id             = c.Id,
+                Name           = c.Name,
+                Slug           = c.Slug,
+                Hex            = c.Hex,
+                PriceModifier  = c.PriceModifier,
+                IsForMainText  = c.IsForMainText,
+                IsForExtraText = c.IsForExtraText,
+                IsActive       = c.IsActive,
+                SortOrder      = c.SortOrder,
             })
             .ToListAsync();
         return Ok(items);
