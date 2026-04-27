@@ -41,6 +41,7 @@ public class AppDbContext : DbContext
     public DbSet<RibbonPrintColor> RibbonPrintColors => Set<RibbonPrintColor>();
     public DbSet<RibbonFont> RibbonFonts => Set<RibbonFont>();
     public DbSet<RibbonPrintType> RibbonPrintTypes => Set<RibbonPrintType>();
+    public DbSet<RibbonEmblem> RibbonEmblems => Set<RibbonEmblem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,5 +68,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RibbonPrintColor>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonFont>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonPrintType>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<RibbonEmblem>().HasQueryFilter(e => !e.IsDeleted);
     }
 }
