@@ -6,6 +6,7 @@ public class OrderStatus : BaseEntity
     public string Color { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public bool IsFinal { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public ICollection<Order> Orders { get; set; } = [];
 }

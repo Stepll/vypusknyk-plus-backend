@@ -444,6 +444,9 @@ namespace VypusknykPlus.Application.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsFinal")
                         .HasColumnType("boolean");
 
