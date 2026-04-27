@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
     public DbSet<InfoPage> InfoPages => Set<InfoPage>();
     public DbSet<RibbonColor> RibbonColors => Set<RibbonColor>();
+    public DbSet<RibbonMaterial> RibbonMaterials => Set<RibbonMaterial>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,5 +60,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<DeliveryMethod>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<PaymentMethod>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonColor>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<RibbonMaterial>().HasQueryFilter(e => !e.IsDeleted);
     }
 }
