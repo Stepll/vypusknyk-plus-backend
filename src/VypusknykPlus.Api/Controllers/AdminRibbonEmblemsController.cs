@@ -25,13 +25,12 @@ public class AdminRibbonEmblemsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var items = await _db.RibbonEmblems
+        var rows = await _db.RibbonEmblems
             .IgnoreQueryFilters()
             .Where(e => !e.IsDeleted)
             .OrderBy(e => e.SortOrder).ThenBy(e => e.Id)
-            .Select(e => Map(e))
             .ToListAsync();
-        return Ok(items);
+        return Ok(rows.Select(Map));
     }
 
     [HttpGet("{id:long}")]

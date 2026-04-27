@@ -22,19 +22,18 @@ public class RibbonEmblemsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetActive()
     {
-        var items = await _db.RibbonEmblems
+        var rows = await _db.RibbonEmblems
             .Where(e => e.IsActive)
             .OrderBy(e => e.SortOrder).ThenBy(e => e.Id)
-            .Select(e => new RibbonEmblemResponse
-            {
-                Id        = e.Id,
-                Name      = e.Name,
-                Slug      = e.Slug,
-                SvgUrl    = e.SvgKey != null ? _imageService.GetPublicUrl(e.SvgKey) : null,
-                IsActive  = e.IsActive,
-                SortOrder = e.SortOrder,
-            })
             .ToListAsync();
-        return Ok(items);
+        return Ok(rows.Select(e => new RibbonEmblemResponse
+        {
+            Id        = e.Id,
+            Name      = e.Name,
+            Slug      = e.Slug,
+            SvgUrl    = _imageService.GetPublicUrl(e.SvgKey),
+            IsActive  = e.IsActive,
+            SortOrder = e.SortOrder,
+        }));
     }
 }
