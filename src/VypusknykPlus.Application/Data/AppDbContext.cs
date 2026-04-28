@@ -48,6 +48,9 @@ public class AppDbContext : DbContext
     public DbSet<ConstructorForcedText> ConstructorForcedTexts => Set<ConstructorForcedText>();
     public DbSet<ConstructorForcedTextValue> ConstructorForcedTextValues => Set<ConstructorForcedTextValue>();
 
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -76,6 +79,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RibbonEmblem>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<ConstructorIncompatibility>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<ConstructorForcedText>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<ChatConversation>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<ChatMessage>().HasQueryFilter(e => !e.IsDeleted);
 
         modelBuilder.Entity<ConstructorIncompatibilityTarget>()
             .HasOne(t => t.Rule)
