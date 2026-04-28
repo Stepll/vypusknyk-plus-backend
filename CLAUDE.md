@@ -33,7 +33,13 @@ src/
 │   │   ├── AdminAdminsController.cs
 │   │   ├── AdminWarehouseController.cs   # GET stats/categories/subcategories/products, POST transactions/products
 │   │   ├── AdminDeliveriesController.cs  # GET/POST deliveries, receive item, receive-all (→204)
-│   │   └── AdminSuppliersController.cs   # CRUD постачальників
+│   │   ├── AdminSuppliersController.cs   # CRUD постачальників
+│   │   ├── AdminRibbonPrintTypesController.cs  # CRUD /admin/ribbon-print-types
+│   │   ├── AdminRibbonEmblemsController.cs     # CRUD /admin/ribbon-emblems + POST svg/left, POST svg/right
+│   │   ├── AdminConstructorRulesController.cs  # CRUD /admin/constructor-rules/incompatibilities + /forced-texts
+│   │   ├── RibbonPrintTypesController.cs       # Public GET /api/v1/ribbon-print-types
+│   │   ├── RibbonEmblemsController.cs          # Public GET /api/v1/ribbon-emblems
+│   │   └── ConstructorRulesController.cs       # Public GET /api/v1/constructor/rules
 │   ├── Middleware/
 │   │   └── ExceptionHandlingMiddleware.cs  # ArgumentException→400, KeyNotFound→404, else→500
 │   └── Program.cs
@@ -59,7 +65,13 @@ src/
     │   ├── StockTransaction.cs    # VariantId, DeliveryItemId?, OrderId?, Type, Quantity, Date, Note
     │   ├── Supplier.cs            # Name, ContactPerson?, Phone?, Email?, TaxId?, Address?, Notes?, IsDeleted
     │   ├── Delivery.cs            # Number (DEL-YYYY-NNNN), SupplierId?, ExpectedDate, Status, IsDeleted
-    │   └── DeliveryItem.cs        # DeliveryId, ProductId, Material, Color, ExpectedQty, ReceivedQty, ReceivedAt?
+    │   ├── DeliveryItem.cs        # DeliveryId, ProductId, Material, Color, ExpectedQty, ReceivedQty, ReceivedAt?
+    │   ├── RibbonPrintType.cs     # Name, Slug, PriceModifier, IsActive, SortOrder
+    │   ├── RibbonEmblem.cs        # Name, Slug, SvgKeyLeft?, SvgKeyRight?, IsActive, SortOrder
+    │   ├── ConstructorIncompatibility.cs  # TypeA, SlugA, TypeB, IsWarning, Message; Targets[]
+    │   ├── ConstructorIncompatibilityTarget.cs  # RuleId FK, SlugB
+    │   ├── ConstructorForcedText.cs       # TriggerType, TriggerSlug, TargetField, Message; Values[]
+    │   └── ConstructorForcedTextValue.cs  # RuleId FK, Value
     ├── Migrations/
     │   ├── InitialCreate
     │   ├── AddProductImages
@@ -73,7 +85,11 @@ src/
     │   ├── AddSupplierExtraFields           # TaxId, Address, Notes на Supplier
     │   ├── AddStockTransactionOrderId       # OrderId на StockTransaction
     │   ├── AddRoles                         # Role (text[] Pages), Admin.RoleId FK; seed SuperAdmin/Manager/Warehouse
-    │   └── AddProductCategoriesTable        # ProductCategories/Subcategories; data-міграція Category string→CategoryId FK
+    │   ├── AddProductCategoriesTable        # ProductCategories/Subcategories; data-міграція Category string→CategoryId FK
+    │   ├── AddRibbonPrintTypesTable         # RibbonPrintTypes + seed: foil/film/3d
+    │   ├── AddRibbonEmblemsTable            # RibbonEmblems + seed: bell(0)/star(1)/diploma(2)/heart(3)/torch(4)/star-3d(5)
+    │   ├── SplitEmblemSvgKeys              # DROP SvgKey → ADD SvgKeyLeft + SvgKeyRight
+    │   └── AddConstructorRulesTables       # ConstructorIncompatibilities + Targets + ForcedTexts + Values (CASCADE)
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
@@ -165,6 +181,39 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 |-------|------|------|
 | GET | /api/v1/admin/dashboard/sales-by-category?period= | Продажі за категоріями (week/month/year/all) |
 
+### Конструктор — типи друку
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/ribbon-print-types | Публічний список активних |
+| GET | /api/v1/admin/ribbon-print-types | Адмін список усіх |
+| POST | /api/v1/admin/ribbon-print-types | Створити |
+| PUT | /api/v1/admin/ribbon-print-types/{id} | Оновити |
+| DELETE | /api/v1/admin/ribbon-print-types/{id} | Soft delete |
+
+### Конструктор — емблеми
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/ribbon-emblems | Публічний список активних |
+| GET | /api/v1/admin/ribbon-emblems | Адмін список усіх |
+| POST | /api/v1/admin/ribbon-emblems | Створити |
+| PUT | /api/v1/admin/ribbon-emblems/{id} | Оновити |
+| DELETE | /api/v1/admin/ribbon-emblems/{id} | Soft delete |
+| POST | /api/v1/admin/ribbon-emblems/{id}/svg/left | Upload SVG ліва → MinIO `emblems/{id}-left.svg` |
+| POST | /api/v1/admin/ribbon-emblems/{id}/svg/right | Upload SVG права → MinIO `emblems/{id}-right.svg` |
+
+### Конструктор — правила (нові)
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/constructor/rules | Публічний — ConstructorRulesResponse (обидва списки) |
+| GET | /api/v1/admin/constructor-rules/incompatibilities | Список несумісностей |
+| POST | /api/v1/admin/constructor-rules/incompatibilities | Створити |
+| PUT | /api/v1/admin/constructor-rules/incompatibilities/{id} | Оновити (Delete+Insert Targets) |
+| DELETE | /api/v1/admin/constructor-rules/incompatibilities/{id} | Видалити (CASCADE targets) |
+| GET | /api/v1/admin/constructor-rules/forced-texts | Список форс-правил тексту |
+| POST | /api/v1/admin/constructor-rules/forced-texts | Створити |
+| PUT | /api/v1/admin/constructor-rules/forced-texts/{id} | Оновити (Delete+Insert Values) |
+| DELETE | /api/v1/admin/constructor-rules/forced-texts/{id} | Видалити (CASCADE values) |
+
 ### Складський облік
 | Метод | Шлях | Опис |
 |-------|------|------|
@@ -203,6 +252,8 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 - **CurrentStock**: `SUM(income qty) - SUM(outcome qty)` з StockTransactions. Поле `CurrentStock` на `StockVariant` — видалено.
 - **Delivery number**: `DEL-{year}-{COUNT+1:D4}`. Unique index на Number захищає від дублів.
 - **ReceiveAll** повертає `NoContent()` (204) — не `Ok()`.
+- **EF Core projection**: не можна викликати instance методи (наприклад `_imageService.GetPublicUrl()`) всередині LINQ `.Select()` — EF Core кидає `InvalidOperationException: contains a reference to a constant expression through the instance method`. Рішення: спочатку `ToListAsync()`, потім маппінг в пам'яті (`rows.Select(Map)`).
+- **SVG upload**: `IImageService.UploadAsync(objectKey, stream, "image/svg+xml")`. Емблеми зберігаються під ключами `emblems/{id}-left.svg` / `emblems/{id}-right.svg`.
 
 ## Конфігурація
 
