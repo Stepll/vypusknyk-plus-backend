@@ -14,204 +14,163 @@ namespace VypusknykPlus.Application.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Products_Category",
-                table: "Products");
+            // Idempotent drops — production may already have these applied
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS ""IX_Products_Category"";");
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS ""IX_PaymentMethods_Slug"";");
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS ""IX_DeliveryMethods_Slug"";");
 
-            migrationBuilder.DropIndex(
-                name: "IX_PaymentMethods_Slug",
-                table: "PaymentMethods");
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    IF EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name='Products' AND column_name='Category') THEN
+                        ALTER TABLE ""Products"" DROP COLUMN ""Category"";
+                    END IF;
+                END $$;
+            ");
 
-            migrationBuilder.DropIndex(
-                name: "IX_DeliveryMethods_Slug",
-                table: "DeliveryMethods");
+            // AlterColumn calls — idempotent, PostgreSQL ignores if already text
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    ALTER TABLE ""RibbonPrintColors"" ALTER COLUMN ""Slug"" TYPE text;
+                    ALTER TABLE ""RibbonPrintColors"" ALTER COLUMN ""Name"" TYPE text;
+                    ALTER TABLE ""RibbonPrintColors"" ALTER COLUMN ""Hex""  TYPE text;
+                    ALTER TABLE ""RibbonMaterials""   ALTER COLUMN ""Slug"" TYPE text;
+                    ALTER TABLE ""RibbonMaterials""   ALTER COLUMN ""Name"" TYPE text;
+                    ALTER TABLE ""RibbonFonts""       ALTER COLUMN ""Slug""       TYPE text;
+                    ALTER TABLE ""RibbonFonts""       ALTER COLUMN ""Name""       TYPE text;
+                    ALTER TABLE ""RibbonFonts""       ALTER COLUMN ""FontFamily"" TYPE text;
+                    ALTER TABLE ""RibbonColors""      ALTER COLUMN ""Slug""         TYPE text;
+                    ALTER TABLE ""RibbonColors""      ALTER COLUMN ""Name""         TYPE text;
+                    ALTER TABLE ""RibbonColors""      ALTER COLUMN ""Hex""          TYPE text;
+                    ALTER TABLE ""RibbonColors""      ALTER COLUMN ""SecondaryHex"" TYPE text;
+                    ALTER TABLE ""PaymentMethods""    ALTER COLUMN ""Slug"" TYPE text;
+                    ALTER TABLE ""PaymentMethods""    ALTER COLUMN ""Name"" TYPE text;
+                    ALTER TABLE ""DeliveryMethods""   ALTER COLUMN ""Slug"" TYPE text;
+                    ALTER TABLE ""DeliveryMethods""   ALTER COLUMN ""Name"" TYPE text;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "Category",
-                table: "Products");
+            // AddColumn — only if not already present
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                   WHERE table_name='Products' AND column_name='CategoryId') THEN
+                        ALTER TABLE ""Products"" ADD COLUMN ""CategoryId"" bigint NOT NULL DEFAULT 1;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                   WHERE table_name='Products' AND column_name='SubcategoryId') THEN
+                        ALTER TABLE ""Products"" ADD COLUMN ""SubcategoryId"" bigint NULL;
+                    END IF;
+                END $$;
+            ");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Slug",
-                table: "RibbonPrintColors",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
+            // Tables that may already exist on production — wrap in IF NOT EXISTS
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""ProductCategories"" (
+                    ""Id"" bigint NOT NULL,
+                    ""Name"" character varying(100) NOT NULL,
+                    ""Order"" integer NOT NULL,
+                    CONSTRAINT ""PK_ProductCategories"" PRIMARY KEY (""Id"")
+                );
+            ");
+            migrationBuilder.Sql(@"
+                INSERT INTO ""ProductCategories"" (""Id"", ""Name"", ""Order"") VALUES
+                    (1, 'Стрічки', 1), (2, 'Медалі', 2), (3, 'Грамоти', 3), (4, 'Аксесуари', 4)
+                ON CONFLICT DO NOTHING;
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""ProductSubcategories"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""CategoryId"" bigint NOT NULL,
+                    ""Name"" character varying(100) NOT NULL,
+                    ""Order"" integer NOT NULL,
+                    CONSTRAINT ""PK_ProductSubcategories"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_ProductSubcategories_ProductCategories_CategoryId""
+                        FOREIGN KEY (""CategoryId"") REFERENCES ""ProductCategories"" (""Id"") ON DELETE RESTRICT
+                );
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""ConstructorForcedTexts"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""TriggerType"" text NOT NULL, ""TriggerSlug"" text NOT NULL,
+                    ""TargetField"" text NOT NULL, ""Message"" text NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    ""IsDeleted"" boolean NOT NULL,
+                    CONSTRAINT ""PK_ConstructorForcedTexts"" PRIMARY KEY (""Id"")
+                );
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""ConstructorForcedTextValues"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""RuleId"" bigint NOT NULL, ""Value"" text NOT NULL,
+                    CONSTRAINT ""PK_ConstructorForcedTextValues"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_ConstructorForcedTextValues_ConstructorForcedTexts_RuleId""
+                        FOREIGN KEY (""RuleId"") REFERENCES ""ConstructorForcedTexts"" (""Id"") ON DELETE CASCADE
+                );
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""ConstructorIncompatibilities"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""TypeA"" text NOT NULL, ""SlugA"" text NOT NULL, ""TypeB"" text NOT NULL,
+                    ""IsWarning"" boolean NOT NULL, ""Message"" text NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    ""IsDeleted"" boolean NOT NULL,
+                    CONSTRAINT ""PK_ConstructorIncompatibilities"" PRIMARY KEY (""Id"")
+                );
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""ConstructorIncompatibilityTargets"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""RuleId"" bigint NOT NULL, ""SlugB"" text NOT NULL,
+                    CONSTRAINT ""PK_ConstructorIncompatibilityTargets"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_ConstructorIncompatibilityTargets_ConstructorIncompatibilit~""
+                        FOREIGN KEY (""RuleId"") REFERENCES ""ConstructorIncompatibilities"" (""Id"") ON DELETE CASCADE
+                );
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""RibbonEmblems"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""Name"" text NOT NULL, ""Slug"" text NOT NULL,
+                    ""SvgKeyLeft"" text NULL, ""SvgKeyRight"" text NULL,
+                    ""IsActive"" boolean NOT NULL, ""SortOrder"" integer NOT NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    ""IsDeleted"" boolean NOT NULL,
+                    CONSTRAINT ""PK_RibbonEmblems"" PRIMARY KEY (""Id"")
+                );
+            ");
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""RibbonPrintTypes"" (
+                    ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY,
+                    ""Name"" text NOT NULL, ""Slug"" text NOT NULL,
+                    ""PriceModifier"" numeric NOT NULL,
+                    ""IsActive"" boolean NOT NULL, ""SortOrder"" integer NOT NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    ""IsDeleted"" boolean NOT NULL,
+                    CONSTRAINT ""PK_RibbonPrintTypes"" PRIMARY KEY (""Id"")
+                );
+            ");
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                   WHERE table_name='Products' AND column_name='CategoryId') THEN
+                        UPDATE ""Products"" SET ""CategoryId"" = 1 WHERE ""CategoryId"" = 0;
+                    END IF;
+                END $$;
+            ");
+            migrationBuilder.Sql(@"
+                CREATE INDEX IF NOT EXISTS ""IX_Products_CategoryId""   ON ""Products"" (""CategoryId"");
+                CREATE INDEX IF NOT EXISTS ""IX_Products_SubcategoryId"" ON ""Products"" (""SubcategoryId"");
+                CREATE INDEX IF NOT EXISTS ""IX_ProductSubcategories_CategoryId"" ON ""ProductSubcategories"" (""CategoryId"");
+                CREATE INDEX IF NOT EXISTS ""IX_ConstructorForcedTextValues_RuleId"" ON ""ConstructorForcedTextValues"" (""RuleId"");
+                CREATE INDEX IF NOT EXISTS ""IX_ConstructorIncompatibilityTargets_RuleId"" ON ""ConstructorIncompatibilityTargets"" (""RuleId"");
+            ");
 
-            migrationBuilder.AlterColumn<decimal>(
-                name: "PriceModifier",
-                table: "RibbonPrintColors",
-                type: "numeric",
-                nullable: false,
-                oldClrType: typeof(decimal),
-                oldType: "numeric(10,2)");
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "RibbonPrintColors",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Hex",
-                table: "RibbonPrintColors",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(20)",
-                oldMaxLength: 20);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Slug",
-                table: "RibbonMaterials",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<decimal>(
-                name: "PriceModifier",
-                table: "RibbonMaterials",
-                type: "numeric",
-                nullable: false,
-                oldClrType: typeof(decimal),
-                oldType: "numeric(10,2)");
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "RibbonMaterials",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Slug",
-                table: "RibbonFonts",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "RibbonFonts",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "FontFamily",
-                table: "RibbonFonts",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(200)",
-                oldMaxLength: 200);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Slug",
-                table: "RibbonColors",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "SecondaryHex",
-                table: "RibbonColors",
-                type: "text",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "character varying(20)",
-                oldMaxLength: 20,
-                oldNullable: true);
-
-            migrationBuilder.AlterColumn<decimal>(
-                name: "PriceModifier",
-                table: "RibbonColors",
-                type: "numeric",
-                nullable: false,
-                oldClrType: typeof(decimal),
-                oldType: "numeric(10,2)");
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "RibbonColors",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Hex",
-                table: "RibbonColors",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(20)",
-                oldMaxLength: 20);
-
-            migrationBuilder.AddColumn<long>(
-                name: "CategoryId",
-                table: "Products",
-                type: "bigint",
-                nullable: false,
-                defaultValue: 0L);
-
-            migrationBuilder.AddColumn<long>(
-                name: "SubcategoryId",
-                table: "Products",
-                type: "bigint",
-                nullable: true);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Slug",
-                table: "PaymentMethods",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(50)",
-                oldMaxLength: 50);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "PaymentMethods",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Slug",
-                table: "DeliveryMethods",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(50)",
-                oldMaxLength: 50);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Name",
-                table: "DeliveryMethods",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(100)",
-                oldMaxLength: 100);
-
+            // === Chat tables — always new ===
             migrationBuilder.CreateTable(
                 name: "ChatConversations",
                 columns: table => new
@@ -356,193 +315,6 @@ namespace VypusknykPlus.Application.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "ConstructorForcedTextValues",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    RuleId = table.Column<long>(type: "bigint", nullable: false),
-                    Value = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ConstructorForcedTextValues", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ConstructorForcedTextValues_ConstructorForcedTexts_RuleId",
-                        column: x => x.RuleId,
-                        principalTable: "ConstructorForcedTexts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ConstructorIncompatibilityTargets",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    RuleId = table.Column<long>(type: "bigint", nullable: false),
-                    SlugB = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ConstructorIncompatibilityTargets", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ConstructorIncompatibilityTargets_ConstructorIncompatibilit~",
-                        column: x => x.RuleId,
-                        principalTable: "ConstructorIncompatibilities",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ProductSubcategories",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    CategoryId = table.Column<long>(type: "bigint", nullable: false),
-                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Order = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ProductSubcategories", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ProductSubcategories_ProductCategories_CategoryId",
-                        column: x => x.CategoryId,
-                        principalTable: "ProductCategories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.InsertData(
-                table: "ProductCategories",
-                columns: new[] { "Id", "Name", "Order" },
-                values: new object[,]
-                {
-                    { 1L, "Стрічки", 1 },
-                    { 2L, "Медалі", 2 },
-                    { 3L, "Грамоти", 3 },
-                    { 4L, "Аксесуари", 4 }
-                });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 1L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 2L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 3L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 4L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 5L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 6L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 7L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 2L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 8L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 2L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 9L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 2L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 10L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 3L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 11L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 3L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 12L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 4L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 13L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 4L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 14L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.UpdateData(
-                table: "Products",
-                keyColumn: "Id",
-                keyValue: 15L,
-                columns: new[] { "CategoryId", "SubcategoryId" },
-                values: new object[] { 1L, null });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Products_CategoryId",
-                table: "Products",
-                column: "CategoryId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Products_SubcategoryId",
-                table: "Products",
-                column: "SubcategoryId");
-
             migrationBuilder.CreateIndex(
                 name: "IX_ChatConversations_UserId",
                 table: "ChatConversations",
@@ -552,37 +324,6 @@ namespace VypusknykPlus.Application.Migrations
                 name: "IX_ChatMessages_ConversationId",
                 table: "ChatMessages",
                 column: "ConversationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ConstructorForcedTextValues_RuleId",
-                table: "ConstructorForcedTextValues",
-                column: "RuleId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ConstructorIncompatibilityTargets_RuleId",
-                table: "ConstructorIncompatibilityTargets",
-                column: "RuleId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ProductSubcategories_CategoryId",
-                table: "ProductSubcategories",
-                column: "CategoryId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Products_ProductCategories_CategoryId",
-                table: "Products",
-                column: "CategoryId",
-                principalTable: "ProductCategories",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Products_ProductSubcategories_SubcategoryId",
-                table: "Products",
-                column: "SubcategoryId",
-                principalTable: "ProductSubcategories",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
         }
 
         /// <inheritdoc />
