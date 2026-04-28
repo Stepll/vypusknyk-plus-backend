@@ -9,6 +9,6 @@ public class AdminSavedDesignDetailResponse
     public DateTime SavedAt { get; set; }
     public long UserId { get; set; }
     public string UserFullName { get; set; } = string.Empty;
-    public string UserEmail { get; set; } = string.Empty;
+    public string? UserEmail { get; set; }
     public RibbonState State { get; set; } = new();
 }

@@ -31,14 +31,14 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email && !u.IsGuest);
 
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (user is null || user.PasswordHash is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new UnauthorizedAccessException("Невірний email або пароль");
 
         _logger.LogInformation("User {Email} logged in", user.Email);
 
-        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email, null)
+        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email!, null)
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
                 TaskContinuationOptions.OnlyOnFaulted);
 
@@ -47,26 +47,43 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
-        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == request.Email))
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == request.Email && !u.IsGuest))
             throw new ArgumentException("Користувач з таким email вже існує");
 
-        var user = new User
+        var guestUser = request.Phone is not null
+            ? await _db.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Phone == request.Phone && u.IsGuest && !u.IsDeleted)
+            : null;
+
+        User user;
+        if (guestUser is not null)
         {
-            
-            Email = request.Email,
-            FullName = request.FullName,
-            Phone = request.Phone,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            guestUser.IsGuest = false;
+            guestUser.Email = request.Email;
+            guestUser.FullName = request.FullName;
+            guestUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            guestUser.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            user = guestUser;
+            _logger.LogInformation("Guest user {Phone} converted to registered user {Email}", request.Phone, user.Email);
+        }
+        else
+        {
+            user = new User
+            {
+                Email = request.Email,
+                FullName = request.FullName,
+                Phone = request.Phone,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("New user registered: {Email}", user.Email);
+        }
 
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation("New user registered: {Email}", user.Email);
-
-        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email, null)
+        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email!, null)
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
                 TaskContinuationOptions.OnlyOnFaulted);
 
@@ -121,7 +138,7 @@ public class AuthService : IAuthService
         var user = await _db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("Користувача не знайдено");
 
-        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+        if (user.PasswordHash is null || !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             throw new UnauthorizedAccessException("Невірний поточний пароль");
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -171,7 +188,7 @@ public class AuthService : IAuthService
         _db.PasswordResetTokens.Add(resetToken);
         await _db.SaveChangesAsync();
 
-        await _emailService.SendPasswordResetEmailAsync(user.Email, user.FullName, resetToken.Token);
+        await _emailService.SendPasswordResetEmailAsync(user.Email!, user.FullName, resetToken.Token);
 
         _logger.LogInformation("Password reset token created for user {Email}", user.Email);
     }
@@ -209,7 +226,7 @@ public class AuthService : IAuthService
         return new AuthResponse
         {
             Id = user.Id,
-            Email = user.Email,
+            Email = user.Email ?? string.Empty,
             FullName = user.FullName,
             Phone = user.Phone,
             Token = GenerateJwtToken(user),
@@ -248,7 +265,7 @@ public class AuthService : IAuthService
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
             new Claim(ClaimTypes.Name, user.FullName)
         };
 

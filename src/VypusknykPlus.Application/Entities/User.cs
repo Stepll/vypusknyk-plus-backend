@@ -2,10 +2,11 @@ namespace VypusknykPlus.Application.Entities;
 
 public class User : BaseEntity
 {
-    public string Email { get; set; } = string.Empty;
+    public bool IsGuest { get; set; }
+    public string? Email { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string? Phone { get; set; }
-    public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; }
 
     public ICollection<Order> Orders { get; set; } = [];
     public ICollection<SavedDesign> SavedDesigns { get; set; } = [];

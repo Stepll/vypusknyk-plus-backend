@@ -11,11 +11,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasKey(u => u.Id);
         builder.Property(u => u.Id).ValueGeneratedOnAdd();
 
-        builder.Property(u => u.Email).IsRequired().HasMaxLength(256);
+        builder.Property(u => u.IsGuest).HasDefaultValue(false);
+        builder.Property(u => u.Email).HasMaxLength(256);
         builder.Property(u => u.FullName).IsRequired().HasMaxLength(200);
         builder.Property(u => u.Phone).HasMaxLength(20);
-        builder.Property(u => u.PasswordHash).IsRequired().HasMaxLength(256);
+        builder.Property(u => u.PasswordHash).HasMaxLength(256);
 
-        builder.HasIndex(u => u.Email).IsUnique();
+        builder.HasIndex(u => u.Email).IsUnique().HasFilter("\"Email\" IS NOT NULL");
+        builder.HasIndex(u => u.Phone).IsUnique().HasFilter("\"Phone\" IS NOT NULL");
     }
 }

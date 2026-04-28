@@ -1741,7 +1741,6 @@ namespace VypusknykPlus.Application.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
@@ -1753,8 +1752,11 @@ namespace VypusknykPlus.Application.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsGuest")
+                        .HasDefaultValue(false)
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
@@ -1768,7 +1770,12 @@ namespace VypusknykPlus.Application.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Email\" IS NOT NULL");
+
+                    b.HasIndex("Phone")
+                        .IsUnique()
+                        .HasFilter("\"Phone\" IS NOT NULL");
 
                     b.ToTable("Users");
                 });

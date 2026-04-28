@@ -58,6 +58,9 @@ public class OrderService : IOrderService
 
         var total = orderItems.Sum(i => i.Quantity * i.Price);
 
+        if (!userId.HasValue && !string.IsNullOrWhiteSpace(request.Recipient.Phone))
+            userId = await FindOrCreateGuestUserAsync(request.Recipient.Phone, request.Recipient.FullName);
+
         var order = new Order
         {
             OrderNumber = GenerateOrderNumber(),
@@ -84,8 +87,8 @@ public class OrderService : IOrderService
             Email = request.Email,
             Comment = request.Comment,
             UserId = userId,
-            IsAnonymous = !userId.HasValue,
-            GuestToken = userId.HasValue ? null : request.GuestToken,
+            IsAnonymous = false,
+            GuestToken = null,
             Items = orderItems,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -172,6 +175,29 @@ public class OrderService : IOrderService
             await _db.SaveChangesAsync();
             _logger.LogInformation("Claimed {Count} guest orders for user {UserId}", orders.Count, userId);
         }
+    }
+
+    private async Task<long> FindOrCreateGuestUserAsync(string phone, string fullName)
+    {
+        var existing = await _db.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Phone == phone && !u.IsDeleted);
+
+        if (existing is not null)
+            return existing.Id;
+
+        var guest = new User
+        {
+            IsGuest = true,
+            FullName = fullName,
+            Phone = phone,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _db.Users.Add(guest);
+        await _db.SaveChangesAsync();
+        return guest.Id;
     }
 
     private static string GenerateOrderNumber()

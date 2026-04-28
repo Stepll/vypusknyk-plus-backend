@@ -306,6 +306,7 @@ public class AdminService : IAdminService
             .Select(u => new AdminUserResponse
             {
                 Id = u.Id,
+                IsGuest = u.IsGuest,
                 Email = u.Email,
                 FullName = u.FullName,
                 Phone = u.Phone,
@@ -343,6 +344,7 @@ public class AdminService : IAdminService
         return new AdminUserDetailResponse
         {
             Id = user.Id,
+            IsGuest = user.IsGuest,
             Email = user.Email,
             FullName = user.FullName,
             Phone = user.Phone,
