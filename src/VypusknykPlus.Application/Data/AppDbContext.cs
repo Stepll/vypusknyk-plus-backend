@@ -43,6 +43,11 @@ public class AppDbContext : DbContext
     public DbSet<RibbonPrintType> RibbonPrintTypes => Set<RibbonPrintType>();
     public DbSet<RibbonEmblem> RibbonEmblems => Set<RibbonEmblem>();
 
+    public DbSet<ConstructorIncompatibility> ConstructorIncompatibilities => Set<ConstructorIncompatibility>();
+    public DbSet<ConstructorIncompatibilityTarget> ConstructorIncompatibilityTargets => Set<ConstructorIncompatibilityTarget>();
+    public DbSet<ConstructorForcedText> ConstructorForcedTexts => Set<ConstructorForcedText>();
+    public DbSet<ConstructorForcedTextValue> ConstructorForcedTextValues => Set<ConstructorForcedTextValue>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -69,5 +74,19 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RibbonFont>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonPrintType>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonEmblem>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<ConstructorIncompatibility>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<ConstructorForcedText>().HasQueryFilter(e => !e.IsDeleted);
+
+        modelBuilder.Entity<ConstructorIncompatibilityTarget>()
+            .HasOne(t => t.Rule)
+            .WithMany(r => r.Targets)
+            .HasForeignKey(t => t.RuleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ConstructorForcedTextValue>()
+            .HasOne(v => v.Rule)
+            .WithMany(r => r.Values)
+            .HasForeignKey(v => v.RuleId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
