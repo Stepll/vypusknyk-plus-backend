@@ -47,7 +47,8 @@ src/
 └── VypusknykPlus.Application/
     ├── Entities/
     │   ├── BaseEntity.cs          # Id (long), CreatedAt, UpdatedAt, IsDeleted
-    │   ├── User.cs
+    │   ├── User.cs                # + IsEmailVerified, IsNameVerified, IsPhoneVerified (bool)
+    │   ├── EmailVerificationToken.cs  # Token (string), ExpiresAt, IsUsed, UserId FK; IsValid computed
     │   ├── Admin.cs               # LastLoginAt?, RoleId? FK → Role
     │   ├── Role.cs                # Name, Color, Pages (text[]), IsSuperAdmin; soft delete
     │   ├── Product.cs             # CategoryId FK → ProductCategory, SubcategoryId? FK → ProductSubcategory
@@ -89,7 +90,9 @@ src/
     │   ├── AddRibbonPrintTypesTable         # RibbonPrintTypes + seed: foil/film/3d
     │   ├── AddRibbonEmblemsTable            # RibbonEmblems + seed: bell(0)/star(1)/diploma(2)/heart(3)/torch(4)/star-3d(5)
     │   ├── SplitEmblemSvgKeys              # DROP SvgKey → ADD SvgKeyLeft + SvgKeyRight
-    │   └── AddConstructorRulesTables       # ConstructorIncompatibilities + Targets + ForcedTexts + Values (CASCADE)
+    │   ├── AddConstructorRulesTables       # ConstructorIncompatibilities + Targets + ForcedTexts + Values (CASCADE)
+    │   ├── AddUserVerificationFields       # IsEmailVerified, IsNameVerified, IsPhoneVerified на User
+    │   └── AddEmailVerificationToken       # EmailVerificationTokens таблиця (Token, ExpiresAt, IsUsed, UserId FK)
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
@@ -111,6 +114,15 @@ src/
     │   └── DashboardChartResponse.cs # (розширено) SalesByCategoryResponse, SalesCategoryEntry,
     │                                  # SalesSubcategoryEntry, SalesProductEntry
     └── Services/
+        ├── IEmailService / EmailService   # SendPasswordResetEmailAsync, SendOrderConfirmationEmailAsync,
+        │                                  # SendActivationEmailAsync (брендований HTML), SendRawEmailAsync
+        ├── IAuthService / AuthService     # + VerifyEmailAsync(token), ResendActivationEmailAsync(userId)
+        │                                  # RegisterAsync: fire-and-forget SendActivationEmailInBackgroundAsync
+        │                                  #   + ClaimGuestOrdersInBackgroundAsync — обидва через IServiceScopeFactory
+        │                                  # ВАЖЛИВО: fire-and-forget мусить створювати scope через
+        │                                  #   IServiceScopeFactory.CreateAsyncScope() — інакше DbContext concurrency
+        ├── IAdminService / AdminService   # + PatchUserInfoAsync, PatchUserVerificationAsync,
+        │                                  # SendUserActivationEmailAsync, SendUserEmailAsync
         ├── IProductCategoryService / ProductCategoryService  # CRUD ProductCategories + Subcategories
         ├── IWarehouseService / WarehouseService
         │   # GetStats, GetCategories, GetSubcategories, GetProducts, GetProductDetail,
@@ -148,7 +160,23 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 
 ## API ендпоінти (Admin)
 
-### Замовлення / Продукти / Юзери / Адміни — стандартні CRUD (незмінні)
+### Auth (публічні + авторизовані)
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/auth/verify-email?token= | Підтвердити email за токеном → 200/400 |
+| POST | /api/v1/auth/resend-activation | Повторно надіслати лист активації (Authorize) → 204 |
+
+### Юзери (адмін)
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/admin/users | Список (paginated) |
+| GET | /api/v1/admin/users/{id} | Деталі + orders[] + savedDesigns[] |
+| PATCH | /api/v1/admin/users/{id}/info | Оновити fullName/phone → AdminUserDetailResponse |
+| PATCH | /api/v1/admin/users/{id}/verification | Оновити isEmailVerified/isNameVerified/isPhoneVerified |
+| POST | /api/v1/admin/users/{id}/send-activation-email | Надіслати лист активації → 204 |
+| POST | /api/v1/admin/users/{id}/send-email | Надіслати кастомний лист (subject, body) → 204 |
+
+### Замовлення / Продукти / Адміни — стандартні CRUD (незмінні)
 
 ### Адміни та Ролі
 | Метод | Шлях | Опис |
@@ -253,6 +281,8 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 - **Delivery number**: `DEL-{year}-{COUNT+1:D4}`. Unique index на Number захищає від дублів.
 - **ReceiveAll** повертає `NoContent()` (204) — не `Ok()`.
 - **EF Core projection**: не можна викликати instance методи (наприклад `_imageService.GetPublicUrl()`) всередині LINQ `.Select()` — EF Core кидає `InvalidOperationException: contains a reference to a constant expression through the instance method`. Рішення: спочатку `ToListAsync()`, потім маппінг в пам'яті (`rows.Select(Map)`).
+- **Fire-and-forget + DbContext**: scoped `DbContext` не можна шарити між потоками. Будь-яка fire-and-forget операція (email, claim guest orders) мусить отримувати власний DbContext через `IServiceScopeFactory.CreateAsyncScope()`. Інакше — `ObjectDisposedException` або race condition на disposed context.
+- **Email activation**: надсилається автоматично при `RegisterAsync` (fire-and-forget). Токен — таблиця `EmailVerificationTokens`, старі токени інвалідуються при повторній відправці. Термін дії 24 год.
 - **SVG upload**: `IImageService.UploadAsync(objectKey, stream, "image/svg+xml")`. Емблеми зберігаються під ключами `emblems/{id}-left.svg` / `emblems/{id}-right.svg`.
 
 ## Конфігурація
