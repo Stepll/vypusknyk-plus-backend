@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -18,14 +19,16 @@ public class AuthService : IAuthService
     private readonly JwtSettings _jwt;
     private readonly IEmailService _emailService;
     private readonly IOrderService _orderService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext db, IOptions<JwtSettings> jwt, IEmailService emailService, IOrderService orderService, ILogger<AuthService> logger)
+    public AuthService(AppDbContext db, IOptions<JwtSettings> jwt, IEmailService emailService, IOrderService orderService, IServiceScopeFactory scopeFactory, ILogger<AuthService> logger)
     {
         _db = db;
         _jwt = jwt.Value;
         _emailService = emailService;
         _orderService = orderService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -87,19 +90,21 @@ public class AuthService : IAuthService
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
                 TaskContinuationOptions.OnlyOnFaulted);
 
-        _ = SendActivationEmailForUserAsync(user)
+        _ = SendActivationEmailInBackgroundAsync(user.Id, user.Email!, user.FullName)
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send activation email to {Email}", user.Email),
                 TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);
     }
 
-    public async Task SendActivationEmailForUserAsync(User user)
+    private async Task SendActivationEmailInBackgroundAsync(long userId, string email, string fullName)
     {
-        if (user.Email is null) return;
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
-        var oldTokens = await _db.EmailVerificationTokens
-            .Where(t => t.UserId == user.Id && !t.IsUsed)
+        var oldTokens = await db.EmailVerificationTokens
+            .Where(t => t.UserId == userId && !t.IsUsed)
             .ToListAsync();
         foreach (var t in oldTokens)
             t.IsUsed = true;
@@ -109,13 +114,19 @@ public class AuthService : IAuthService
             Token = GenerateSecureToken(),
             ExpiresAt = DateTime.UtcNow.AddHours(24),
             CreatedAt = DateTime.UtcNow,
-            UserId = user.Id
+            UserId = userId
         };
 
-        _db.EmailVerificationTokens.Add(token);
-        await _db.SaveChangesAsync();
+        db.EmailVerificationTokens.Add(token);
+        await db.SaveChangesAsync();
 
-        await _emailService.SendActivationEmailAsync(user.Email, user.FullName, token.Token);
+        await emailService.SendActivationEmailAsync(email, fullName, token.Token);
+    }
+
+    public async Task SendActivationEmailForUserAsync(User user)
+    {
+        if (user.Email is null) return;
+        await SendActivationEmailInBackgroundAsync(user.Id, user.Email, user.FullName);
     }
 
     public async Task VerifyEmailAsync(string token)
