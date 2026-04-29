@@ -95,6 +95,9 @@ public class EmailService : IEmailService
         _logger.LogInformation("Activation email sent to {Email}", toEmail);
     }
 
+    public Task SendRawEmailAsync(string toEmail, string subject, string htmlBody)
+        => SendEmailAsync(toEmail, subject, htmlBody);
+
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
     {
         var message = new MimeMessage();

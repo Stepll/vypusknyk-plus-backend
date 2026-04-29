@@ -406,6 +406,25 @@ public class AdminService : IAdminService
         return await GetUserAsync(id);
     }
 
+    public async Task SendUserEmailAsync(long id, string subject, string body)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user?.Email is null) return;
+
+        var html = $"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #e91e8c;">Випускник+</h2>
+                <p>Вітаємо, {user.FullName}!</p>
+                {body.Replace("\n", "<br/>")}
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                    З повагою,<br/>Команда Випускник+
+                </p>
+            </div>
+            """;
+
+        await _emailService.SendRawEmailAsync(user.Email, subject, html);
+    }
+
     public async Task SendUserActivationEmailAsync(long id)
     {
         var user = await _db.Users.FindAsync(id);

@@ -50,4 +50,11 @@ public class AdminUsersController : ControllerBase
         await _admin.SendUserActivationEmailAsync(id);
         return NoContent();
     }
+
+    [HttpPost("{id:long}/send-email")]
+    public async Task<ActionResult> SendEmail(long id, [FromBody] SendUserEmailRequest request)
+    {
+        await _admin.SendUserEmailAsync(id, request.Subject, request.Body);
+        return NoContent();
+    }
 }

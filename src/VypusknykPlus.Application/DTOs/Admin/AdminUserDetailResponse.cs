@@ -44,3 +44,9 @@ public class PatchUserVerificationRequest
     public bool? IsNameVerified { get; set; }
     public bool? IsPhoneVerified { get; set; }
 }
+
+public class SendUserEmailRequest
+{
+    public string Subject { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+}

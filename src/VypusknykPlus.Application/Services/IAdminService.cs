@@ -23,6 +23,7 @@ public interface IAdminService
     Task<AdminUserDetailResponse?> PatchUserInfoAsync(long id, PatchUserInfoRequest request);
     Task<AdminUserDetailResponse?> PatchUserVerificationAsync(long id, PatchUserVerificationRequest request);
     Task SendUserActivationEmailAsync(long id);
+    Task SendUserEmailAsync(long id, string subject, string body);
 
     Task<PagedResponse<AdminSavedDesignResponse>> GetSavedDesignsAsync(int page, int pageSize);
     Task<AdminSavedDesignDetailResponse?> GetSavedDesignAsync(long id);
