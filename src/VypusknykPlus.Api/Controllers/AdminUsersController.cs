@@ -43,4 +43,11 @@ public class AdminUsersController : ControllerBase
         var user = await _admin.PatchUserVerificationAsync(id, request);
         return user is null ? NotFound() : Ok(user);
     }
+
+    [HttpPost("{id:long}/send-activation-email")]
+    public async Task<ActionResult> SendActivationEmail(long id)
+    {
+        await _admin.SendUserActivationEmailAsync(id);
+        return NoContent();
+    }
 }

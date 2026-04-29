@@ -87,7 +87,53 @@ public class AuthService : IAuthService
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
                 TaskContinuationOptions.OnlyOnFaulted);
 
+        _ = SendActivationEmailForUserAsync(user)
+            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send activation email to {Email}", user.Email),
+                TaskContinuationOptions.OnlyOnFaulted);
+
         return await ToAuthResponse(user);
+    }
+
+    public async Task SendActivationEmailForUserAsync(User user)
+    {
+        if (user.Email is null) return;
+
+        var oldTokens = await _db.EmailVerificationTokens
+            .Where(t => t.UserId == user.Id && !t.IsUsed)
+            .ToListAsync();
+        foreach (var t in oldTokens)
+            t.IsUsed = true;
+
+        var token = new EmailVerificationToken
+        {
+            Token = GenerateSecureToken(),
+            ExpiresAt = DateTime.UtcNow.AddHours(24),
+            CreatedAt = DateTime.UtcNow,
+            UserId = user.Id
+        };
+
+        _db.EmailVerificationTokens.Add(token);
+        await _db.SaveChangesAsync();
+
+        await _emailService.SendActivationEmailAsync(user.Email, user.FullName, token.Token);
+    }
+
+    public async Task VerifyEmailAsync(string token)
+    {
+        var verToken = await _db.EmailVerificationTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Token == token);
+
+        if (verToken is null || !verToken.IsValid)
+            throw new ArgumentException("Невалідне або протерміноване посилання підтвердження");
+
+        verToken.IsUsed = true;
+        verToken.User.IsEmailVerified = true;
+        verToken.User.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Email verified for user {Email}", verToken.User.Email);
     }
 
     public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request)

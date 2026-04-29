@@ -69,4 +69,11 @@ public class AuthController : ControllerBase
         await _authService.ChangePasswordAsync(userId, request);
         return NoContent();
     }
+
+    [HttpGet("verify-email")]
+    public async Task<ActionResult> VerifyEmail([FromQuery] string token)
+    {
+        await _authService.VerifyEmailAsync(token);
+        return Ok(new { message = "Email успішно підтверджено" });
+    }
 }

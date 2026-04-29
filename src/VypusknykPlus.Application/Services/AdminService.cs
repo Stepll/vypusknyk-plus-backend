@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.DTOs;
@@ -11,11 +12,13 @@ public class AdminService : IAdminService
 {
     private readonly AppDbContext _db;
     private readonly IImageService _imageService;
+    private readonly IEmailService _emailService;
 
-    public AdminService(AppDbContext db, IImageService imageService)
+    public AdminService(AppDbContext db, IImageService imageService, IEmailService emailService)
     {
         _db = db;
         _imageService = imageService;
+        _emailService = emailService;
     }
 
     public async Task<PagedResponse<AdminOrderResponse>> GetOrdersAsync(int page, int pageSize, string? status)
@@ -398,6 +401,32 @@ public class AdminService : IAdminService
         await _db.SaveChangesAsync();
 
         return await GetUserAsync(id);
+    }
+
+    public async Task SendUserActivationEmailAsync(long id)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user is null || user.Email is null) return;
+
+        var oldTokens = await _db.EmailVerificationTokens
+            .Where(t => t.UserId == id && !t.IsUsed)
+            .ToListAsync();
+        foreach (var t in oldTokens)
+            t.IsUsed = true;
+
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        var token = new EmailVerificationToken
+        {
+            Token = Convert.ToBase64String(bytes),
+            ExpiresAt = DateTime.UtcNow.AddHours(24),
+            CreatedAt = DateTime.UtcNow,
+            UserId = id
+        };
+
+        _db.EmailVerificationTokens.Add(token);
+        await _db.SaveChangesAsync();
+
+        await _emailService.SendActivationEmailAsync(user.Email, user.FullName, token.Token);
     }
 
     public async Task<AdminAdminDetailResponse?> GetAdminDetailAsync(long id)

@@ -65,6 +65,36 @@ public class EmailService : IEmailService
         _logger.LogInformation("Order confirmation email sent to {Email}, order {OrderNumber}", toEmail, orderNumber);
     }
 
+    public async Task SendActivationEmailAsync(string toEmail, string fullName, string verificationToken)
+    {
+        var verifyUrl = $"{_settings.FrontendUrl}/verify-email?token={Uri.EscapeDataString(verificationToken)}";
+
+        var body = $"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #e91e8c;">Випускник+</h2>
+                <p>Вітаємо, {fullName}!</p>
+                <p>Дякуємо за реєстрацію. Для активації акаунту підтвердіть свою електронну адресу:</p>
+                <p style="text-align: center; margin: 30px 0;">
+                    <a href="{verifyUrl}"
+                       style="background-color: #e91e8c; color: white; padding: 12px 30px;
+                              text-decoration: none; border-radius: 6px; font-size: 16px;">
+                        Підтвердити email
+                    </a>
+                </p>
+                <p style="color: #666; font-size: 14px;">
+                    Посилання дійсне 24 години. Якщо ви не реєструвалися — проігноруйте цей лист.
+                </p>
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                    З повагою,<br/>Команда Випускник+
+                </p>
+            </div>
+            """;
+
+        await SendEmailAsync(toEmail, "Підтвердження email — Випускник+", body);
+
+        _logger.LogInformation("Activation email sent to {Email}", toEmail);
+    }
+
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
     {
         var message = new MimeMessage();
