@@ -41,8 +41,10 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("User {Email} logged in", user.Email);
 
-        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email!, null)
-            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
+        var loginEmail = user.Email!;
+        var loginId = user.Id;
+        _ = ClaimGuestOrdersInBackgroundAsync(loginId, loginEmail)
+            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", loginEmail),
                 TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);
@@ -86,15 +88,26 @@ public class AuthService : IAuthService
             _logger.LogInformation("New user registered: {Email}", user.Email);
         }
 
-        _ = _orderService.ClaimGuestOrdersAsync(user.Id, user.Email!, null)
-            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", user.Email),
+        var capturedId = user.Id;
+        var capturedEmail = user.Email!;
+        var capturedFullName = user.FullName;
+
+        _ = ClaimGuestOrdersInBackgroundAsync(capturedId, capturedEmail)
+            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", capturedEmail),
                 TaskContinuationOptions.OnlyOnFaulted);
 
-        _ = SendActivationEmailInBackgroundAsync(user.Id, user.Email!, user.FullName)
-            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send activation email to {Email}", user.Email),
+        _ = SendActivationEmailInBackgroundAsync(capturedId, capturedEmail, capturedFullName)
+            .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send activation email to {Email}", capturedEmail),
                 TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);
+    }
+
+    private async Task ClaimGuestOrdersInBackgroundAsync(long userId, string email)
+    {
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var orderService = scope.ServiceProvider.GetRequiredService<IOrderService>();
+        await orderService.ClaimGuestOrdersAsync(userId, email, null);
     }
 
     private async Task SendActivationEmailInBackgroundAsync(long userId, string email, string fullName)
