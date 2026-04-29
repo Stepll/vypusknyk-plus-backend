@@ -76,4 +76,13 @@ public class AuthController : ControllerBase
         await _authService.VerifyEmailAsync(token);
         return Ok(new { message = "Email успішно підтверджено" });
     }
+
+    [Authorize]
+    [HttpPost("resend-activation")]
+    public async Task<ActionResult> ResendActivation()
+    {
+        var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _authService.ResendActivationEmailAsync(userId);
+        return NoContent();
+    }
 }

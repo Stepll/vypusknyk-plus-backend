@@ -142,6 +142,13 @@ public class AuthService : IAuthService
         await SendActivationEmailInBackgroundAsync(user.Id, user.Email, user.FullName);
     }
 
+    public async Task ResendActivationEmailAsync(long userId)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null || user.Email is null) return;
+        await SendActivationEmailInBackgroundAsync(user.Id, user.Email, user.FullName);
+    }
+
     public async Task VerifyEmailAsync(string token)
     {
         var verToken = await _db.EmailVerificationTokens
@@ -297,6 +304,7 @@ public class AuthService : IAuthService
         {
             Id = user.Id,
             Email = user.Email ?? string.Empty,
+            IsEmailVerified = user.IsEmailVerified,
             FullName = user.FullName,
             Phone = user.Phone,
             Token = GenerateJwtToken(user),

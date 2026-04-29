@@ -311,8 +311,11 @@ public class AdminService : IAdminService
                 Id = u.Id,
                 IsGuest = u.IsGuest,
                 Email = u.Email,
+                IsEmailVerified = u.IsEmailVerified,
                 FullName = u.FullName,
+                IsNameVerified = u.IsNameVerified,
                 Phone = u.Phone,
+                IsPhoneVerified = u.IsPhoneVerified,
                 CreatedAt = u.CreatedAt,
                 OrdersCount = u.Orders.Count,
             })
