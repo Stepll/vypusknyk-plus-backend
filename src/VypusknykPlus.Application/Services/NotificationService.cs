@@ -48,25 +48,23 @@ public class NotificationService : INotificationService
 
     public async Task OnOrderStatusChangedAsync(long orderId, string orderNumber, string newStatusName)
     {
-        var config = await _db.NotificationTriggerConfigs.FindAsync("order_status_changed");
-        if (config is null || !config.SystemEnabled) return;
+        // Catch-all: fires for every status change
+        await DispatchStatusTriggerAsync("order_status_changed", orderId, orderNumber, newStatusName);
+        // Specific: fires only for this status
+        await DispatchStatusTriggerAsync($"order_status_changed:{newStatusName}", orderId, orderNumber, newStatusName);
+    }
 
-        if (!string.IsNullOrEmpty(config.ExtraConfig))
-        {
-            var extra = JsonSerializer.Deserialize<JsonElement>(config.ExtraConfig);
-            if (extra.TryGetProperty("statusFilter", out var filter))
-            {
-                var filterValue = filter.GetString();
-                if (filterValue != "any" && filterValue != newStatusName) return;
-            }
-        }
+    private async Task DispatchStatusTriggerAsync(string triggerType, long orderId, string orderNumber, string newStatusName)
+    {
+        var config = await _db.NotificationTriggerConfigs.FindAsync(triggerType);
+        if (config is null || !config.SystemEnabled) return;
 
         var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
         if (adminIds.Count == 0) return;
 
         await DispatchAsync(adminIds, new AdminNotification
         {
-            TriggerType = "order_status_changed",
+            TriggerType = triggerType,
             Title = "Статус замовлення змінено",
             Body = $"Замовлення #{orderNumber} → {newStatusName}",
             EntityType = "order",
@@ -135,17 +133,23 @@ public class NotificationService : INotificationService
         var configs = await _db.NotificationTriggerConfigs.ToListAsync();
         var configMap = configs.ToDictionary(c => c.TriggerType);
 
-        return AllTriggerTypes.Select(type =>
-        {
-            if (configMap.TryGetValue(type, out var config))
-                return MapConfig(config);
+        // Base triggers (always present in response)
+        var result = AllTriggerTypes.Select(type =>
+            configMap.TryGetValue(type, out var c)
+                ? MapConfig(c)
+                : new NotificationTriggerConfigResponse
+                {
+                    TriggerType = type,
+                    DisplayName = TriggerDisplayNames.GetValueOrDefault(type, type)
+                }
+        ).ToList();
 
-            return new NotificationTriggerConfigResponse
-            {
-                TriggerType = type,
-                DisplayName = TriggerDisplayNames.GetValueOrDefault(type, type)
-            };
-        }).ToList();
+        // Sub-triggers (e.g. "order_status_changed:Прийнято")
+        result.AddRange(configs
+            .Where(c => c.TriggerType.Contains(':'))
+            .Select(MapConfig));
+
+        return result;
     }
 
     public async Task UpdateTriggerConfigAsync(string triggerType, UpdateNotificationTriggerConfigRequest request)
