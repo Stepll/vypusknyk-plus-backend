@@ -29,4 +29,18 @@ public class AdminUsersController : ControllerBase
         var user = await _admin.GetUserAsync(id);
         return user is null ? NotFound() : Ok(user);
     }
+
+    [HttpPatch("{id:long}/info")]
+    public async Task<ActionResult<AdminUserDetailResponse>> PatchInfo(long id, [FromBody] PatchUserInfoRequest request)
+    {
+        var user = await _admin.PatchUserInfoAsync(id, request);
+        return user is null ? NotFound() : Ok(user);
+    }
+
+    [HttpPatch("{id:long}/verification")]
+    public async Task<ActionResult<AdminUserDetailResponse>> PatchVerification(long id, [FromBody] PatchUserVerificationRequest request)
+    {
+        var user = await _admin.PatchUserVerificationAsync(id, request);
+        return user is null ? NotFound() : Ok(user);
+    }
 }

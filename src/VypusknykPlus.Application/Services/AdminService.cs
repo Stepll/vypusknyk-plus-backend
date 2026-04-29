@@ -346,8 +346,11 @@ public class AdminService : IAdminService
             Id = user.Id,
             IsGuest = user.IsGuest,
             Email = user.Email,
+            IsEmailVerified = user.IsEmailVerified,
             FullName = user.FullName,
+            IsNameVerified = user.IsNameVerified,
             Phone = user.Phone,
+            IsPhoneVerified = user.IsPhoneVerified,
             CreatedAt = user.CreatedAt,
             Orders = user.Orders
                 .OrderByDescending(o => o.CreatedAt)
@@ -370,6 +373,31 @@ public class AdminService : IAdminService
                     SavedAt = d.SavedAt,
                 }).ToList(),
         };
+    }
+
+    public async Task<AdminUserDetailResponse?> PatchUserInfoAsync(long id, PatchUserInfoRequest request)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user is null) return null;
+
+        if (request.FullName is not null) user.FullName = request.FullName;
+        if (request.Phone is not null) user.Phone = request.Phone;
+        await _db.SaveChangesAsync();
+
+        return await GetUserAsync(id);
+    }
+
+    public async Task<AdminUserDetailResponse?> PatchUserVerificationAsync(long id, PatchUserVerificationRequest request)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user is null) return null;
+
+        if (request.IsEmailVerified.HasValue) user.IsEmailVerified = request.IsEmailVerified.Value;
+        if (request.IsNameVerified.HasValue) user.IsNameVerified = request.IsNameVerified.Value;
+        if (request.IsPhoneVerified.HasValue) user.IsPhoneVerified = request.IsPhoneVerified.Value;
+        await _db.SaveChangesAsync();
+
+        return await GetUserAsync(id);
     }
 
     public async Task<AdminAdminDetailResponse?> GetAdminDetailAsync(long id)
