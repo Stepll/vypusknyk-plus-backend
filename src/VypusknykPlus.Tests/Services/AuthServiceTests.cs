@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -37,6 +38,7 @@ public class AuthServiceTests : IDisposable
             jwtSettings,
             new Mock<IEmailService>().Object,
             new Mock<IOrderService>().Object,
+            new Mock<IServiceScopeFactory>().Object,
             new Mock<ILogger<AuthService>>().Object
         );
     }
