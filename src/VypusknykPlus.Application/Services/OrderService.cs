@@ -12,12 +12,14 @@ public class OrderService : IOrderService
     private readonly AppDbContext _db;
     private readonly IEmailService _email;
     private readonly ILogger<OrderService> _logger;
+    private readonly INotificationService _notifications;
 
-    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger)
+    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications)
     {
         _db = db;
         _email = email;
         _logger = logger;
+        _notifications = notifications;
     }
 
     public async Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request)
@@ -99,6 +101,9 @@ public class OrderService : IOrderService
 
         _logger.LogInformation("Order {OrderNumber} created for user {UserId}, total {Total}",
             order.OrderNumber, userId, total);
+
+        _ = _notifications.OnNewOrderAsync(order.Id, order.OrderNumber, request.Recipient.FullName)
+            .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
 
         var toEmail = request.Email;
         if (string.IsNullOrEmpty(toEmail) && userId.HasValue)

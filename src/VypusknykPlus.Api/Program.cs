@@ -96,6 +96,8 @@ builder.Services.AddScoped<IInfoPageService, InfoPageService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IProductCategoryService, ProductCategoryService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<INotificationPushService, SignalRNotificationPushService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // --- SignalR ---
 builder.Services.AddSignalR();

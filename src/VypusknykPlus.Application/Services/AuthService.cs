@@ -19,15 +19,17 @@ public class AuthService : IAuthService
     private readonly JwtSettings _jwt;
     private readonly IEmailService _emailService;
     private readonly IOrderService _orderService;
+    private readonly INotificationService _notifications;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext db, IOptions<JwtSettings> jwt, IEmailService emailService, IOrderService orderService, IServiceScopeFactory scopeFactory, ILogger<AuthService> logger)
+    public AuthService(AppDbContext db, IOptions<JwtSettings> jwt, IEmailService emailService, IOrderService orderService, INotificationService notifications, IServiceScopeFactory scopeFactory, ILogger<AuthService> logger)
     {
         _db = db;
         _jwt = jwt.Value;
         _emailService = emailService;
         _orderService = orderService;
+        _notifications = notifications;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -99,6 +101,9 @@ public class AuthService : IAuthService
         _ = SendActivationEmailInBackgroundAsync(capturedId, capturedEmail, capturedFullName)
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send activation email to {Email}", capturedEmail),
                 TaskContinuationOptions.OnlyOnFaulted);
+
+        _ = _notifications.OnNewUserAsync(capturedId, capturedFullName, capturedEmail)
+            .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);
     }

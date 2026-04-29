@@ -16,7 +16,10 @@ public class ChatHub : Hub
     public override async Task OnConnectedAsync()
     {
         if (IsAdmin())
+        {
             await Groups.AddToGroupAsync(Context.ConnectionId, "admins");
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"admin:{GetCallerId()}");
+        }
 
         await base.OnConnectedAsync();
     }

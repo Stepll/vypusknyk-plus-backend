@@ -13,12 +13,14 @@ public class AdminService : IAdminService
     private readonly AppDbContext _db;
     private readonly IImageService _imageService;
     private readonly IEmailService _emailService;
+    private readonly INotificationService _notifications;
 
-    public AdminService(AppDbContext db, IImageService imageService, IEmailService emailService)
+    public AdminService(AppDbContext db, IImageService imageService, IEmailService emailService, INotificationService notifications)
     {
         _db = db;
         _imageService = imageService;
         _emailService = emailService;
+        _notifications = notifications;
     }
 
     public async Task<PagedResponse<AdminOrderResponse>> GetOrdersAsync(int page, int pageSize, string? status)
@@ -74,6 +76,9 @@ public class AdminService : IAdminService
         order.StatusId = orderStatus.Id;
         order.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        _ = _notifications.OnOrderStatusChangedAsync(order.Id, order.OrderNumber, orderStatus.Name)
+            .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     public async Task<PagedResponse<AdminProductResponse>> GetProductsAsync(int page, int pageSize)
