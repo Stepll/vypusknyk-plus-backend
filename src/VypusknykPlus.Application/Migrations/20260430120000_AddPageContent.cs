@@ -11,18 +11,14 @@ namespace VypusknykPlus.Application.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "PageContents",
-                columns: table => new
-                {
-                    Slug = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Data = table.Column<string>(type: "text", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PageContents", x => x.Slug);
-                });
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""PageContents"" (
+                    ""Slug"" character varying(50) NOT NULL,
+                    ""Data"" text NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_PageContents"" PRIMARY KEY (""Slug"")
+                );
+            ");
         }
 
         /// <inheritdoc />
