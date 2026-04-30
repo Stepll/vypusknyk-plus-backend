@@ -7,7 +7,7 @@ public interface IAdminService
 {
     Task<PagedResponse<AdminOrderResponse>> GetOrdersAsync(int page, int pageSize, string? status);
     Task<AdminOrderResponse?> GetOrderAsync(long id);
-    Task UpdateOrderStatusAsync(long id, string status);
+    Task UpdateOrderStatusAsync(long id, string status, string? adminName = null);
 
     Task<PagedResponse<AdminProductResponse>> GetProductsAsync(int page, int pageSize);
     Task<AdminProductDetailResponse?> GetProductAsync(long id);

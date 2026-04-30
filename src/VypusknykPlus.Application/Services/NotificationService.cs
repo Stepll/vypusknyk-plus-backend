@@ -26,7 +26,7 @@ public class NotificationService : INotificationService
         _push = push;
     }
 
-    public async Task OnNewOrderAsync(long orderId, string orderNumber, string customerName)
+    public async Task OnNewOrderAsync(long orderId, string orderNumber, Dictionary<string, string> context)
     {
         var config = await _db.NotificationTriggerConfigs.FindAsync("new_order");
         if (config is null || !config.SystemEnabled) return;
@@ -34,11 +34,16 @@ public class NotificationService : INotificationService
         var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
         if (adminIds.Count == 0) return;
 
+        var title = ApplyTemplate(config.SystemTitle, context)
+            .OrDefault($"Нове замовлення #{context.GetValueOrDefault("orderNumber")}");
+        var body = ApplyTemplate(config.SystemMessage, context)
+            .OrDefault($"від {context.GetValueOrDefault("customerName")}");
+
         await DispatchAsync(adminIds, new AdminNotification
         {
             TriggerType = "new_order",
-            Title = "Нове замовлення",
-            Body = $"Замовлення #{orderNumber} від {customerName}",
+            Title = title,
+            Body = body,
             EntityType = "order",
             EntityId = orderId,
             IsRead = false,
@@ -46,15 +51,13 @@ public class NotificationService : INotificationService
         });
     }
 
-    public async Task OnOrderStatusChangedAsync(long orderId, string orderNumber, string newStatusName)
+    public async Task OnOrderStatusChangedAsync(long orderId, string orderNumber, string newStatusName, Dictionary<string, string> context)
     {
-        // Catch-all: fires for every status change
-        await DispatchStatusTriggerAsync("order_status_changed", orderId, orderNumber, newStatusName);
-        // Specific: fires only for this status
-        await DispatchStatusTriggerAsync($"order_status_changed:{newStatusName}", orderId, orderNumber, newStatusName);
+        await DispatchStatusTriggerAsync("order_status_changed", orderId, context);
+        await DispatchStatusTriggerAsync($"order_status_changed:{newStatusName}", orderId, context);
     }
 
-    private async Task DispatchStatusTriggerAsync(string triggerType, long orderId, string orderNumber, string newStatusName)
+    private async Task DispatchStatusTriggerAsync(string triggerType, long orderId, Dictionary<string, string> context)
     {
         var config = await _db.NotificationTriggerConfigs.FindAsync(triggerType);
         if (config is null || !config.SystemEnabled) return;
@@ -62,11 +65,19 @@ public class NotificationService : INotificationService
         var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
         if (adminIds.Count == 0) return;
 
+        var orderNumber = context.GetValueOrDefault("orderNumber", "");
+        var statusName = context.GetValueOrDefault("statusName", "");
+
+        var title = ApplyTemplate(config.SystemTitle, context)
+            .OrDefault("Статус замовлення змінено");
+        var body = ApplyTemplate(config.SystemMessage, context)
+            .OrDefault($"Замовлення #{orderNumber} → {statusName}");
+
         await DispatchAsync(adminIds, new AdminNotification
         {
             TriggerType = triggerType,
-            Title = "Статус замовлення змінено",
-            Body = $"Замовлення #{orderNumber} → {newStatusName}",
+            Title = title,
+            Body = body,
             EntityType = "order",
             EntityId = orderId,
             IsRead = false,
@@ -74,7 +85,7 @@ public class NotificationService : INotificationService
         });
     }
 
-    public async Task OnNewUserAsync(long userId, string fullName, string? email)
+    public async Task OnNewUserAsync(long userId, Dictionary<string, string> context)
     {
         var config = await _db.NotificationTriggerConfigs.FindAsync("new_user");
         if (config is null || !config.SystemEnabled) return;
@@ -82,12 +93,18 @@ public class NotificationService : INotificationService
         var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
         if (adminIds.Count == 0) return;
 
-        var body = email is not null ? $"{fullName} ({email})" : fullName;
+        var fullName = context.GetValueOrDefault("fullName", "");
+        var email = context.GetValueOrDefault("email", "");
+
+        var title = ApplyTemplate(config.SystemTitle, context)
+            .OrDefault("Нова реєстрація");
+        var body = ApplyTemplate(config.SystemMessage, context)
+            .OrDefault(string.IsNullOrEmpty(email) ? fullName : $"{fullName} ({email})");
 
         await DispatchAsync(adminIds, new AdminNotification
         {
             TriggerType = "new_user",
-            Title = "Нова реєстрація",
+            Title = title,
             Body = body,
             EntityType = "user",
             EntityId = userId,
@@ -133,7 +150,6 @@ public class NotificationService : INotificationService
         var configs = await _db.NotificationTriggerConfigs.ToListAsync();
         var configMap = configs.ToDictionary(c => c.TriggerType);
 
-        // Base triggers (always present in response)
         var result = AllTriggerTypes.Select(type =>
             configMap.TryGetValue(type, out var c)
                 ? MapConfig(c)
@@ -144,7 +160,6 @@ public class NotificationService : INotificationService
                 }
         ).ToList();
 
-        // Sub-triggers (e.g. "order_status_changed:Прийнято")
         result.AddRange(configs
             .Where(c => c.TriggerType.Contains(':'))
             .Select(MapConfig));
@@ -161,14 +176,18 @@ public class NotificationService : INotificationService
             _db.NotificationTriggerConfigs.Add(config);
         }
 
-        config.ExtraConfig = request.ExtraConfig;
         config.EmailEnabled = request.EmailEnabled;
         config.EmailRecipients = JsonSerializer.Serialize(request.EmailRecipients);
+        config.EmailSubject = request.EmailSubject;
+        config.EmailMessage = request.EmailMessage;
         config.TelegramEnabled = request.TelegramEnabled;
         config.TelegramUserIds = JsonSerializer.Serialize(request.TelegramUserIds);
         config.TelegramGroupEnabled = request.TelegramGroupEnabled;
+        config.TelegramMessage = request.TelegramMessage;
         config.SystemEnabled = request.SystemEnabled;
         config.SystemAdminIds = JsonSerializer.Serialize(request.SystemAdminIds);
+        config.SystemTitle = request.SystemTitle;
+        config.SystemMessage = request.SystemMessage;
 
         await _db.SaveChangesAsync();
     }
@@ -194,18 +213,30 @@ public class NotificationService : INotificationService
             await _push.PushToAdminAsync(n.AdminId, ToDto(n));
     }
 
+    private static string ApplyTemplate(string? template, Dictionary<string, string> vars)
+    {
+        if (string.IsNullOrEmpty(template)) return string.Empty;
+        foreach (var (key, value) in vars)
+            template = template.Replace($"{{{{{key}}}}}", value);
+        return template;
+    }
+
     private static NotificationTriggerConfigResponse MapConfig(NotificationTriggerConfig c) => new()
     {
         TriggerType = c.TriggerType,
         DisplayName = TriggerDisplayNames.GetValueOrDefault(c.TriggerType, c.TriggerType),
-        ExtraConfig = c.ExtraConfig,
         EmailEnabled = c.EmailEnabled,
         EmailRecipients = JsonSerializer.Deserialize<List<string>>(c.EmailRecipients) ?? [],
+        EmailSubject = c.EmailSubject,
+        EmailMessage = c.EmailMessage,
         TelegramEnabled = c.TelegramEnabled,
         TelegramUserIds = JsonSerializer.Deserialize<List<string>>(c.TelegramUserIds) ?? [],
         TelegramGroupEnabled = c.TelegramGroupEnabled,
+        TelegramMessage = c.TelegramMessage,
         SystemEnabled = c.SystemEnabled,
-        SystemAdminIds = JsonSerializer.Deserialize<List<long>>(c.SystemAdminIds) ?? []
+        SystemAdminIds = JsonSerializer.Deserialize<List<long>>(c.SystemAdminIds) ?? [],
+        SystemTitle = c.SystemTitle,
+        SystemMessage = c.SystemMessage
     };
 
     private static AdminNotificationDto ToDto(AdminNotification n) => new()
@@ -219,4 +250,10 @@ public class NotificationService : INotificationService
         IsRead = n.IsRead,
         CreatedAt = n.CreatedAt
     };
+}
+
+internal static class StringExtensions
+{
+    public static string OrDefault(this string value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value;
 }

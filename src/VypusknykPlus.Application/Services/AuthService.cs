@@ -102,7 +102,14 @@ public class AuthService : IAuthService
             .ContinueWith(t => _logger.LogError(t.Exception, "Failed to send activation email to {Email}", capturedEmail),
                 TaskContinuationOptions.OnlyOnFaulted);
 
-        _ = _notifications.OnNewUserAsync(capturedId, capturedFullName, capturedEmail)
+        var notifContext = new Dictionary<string, string>
+        {
+            ["fullName"] = capturedFullName,
+            ["email"] = capturedEmail,
+            ["phone"] = request.Phone ?? "",
+            ["registrationDate"] = DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm"),
+        };
+        _ = _notifications.OnNewUserAsync(capturedId, notifContext)
             .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
 
         return await ToAuthResponse(user);

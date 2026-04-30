@@ -65,19 +65,42 @@ public class AdminService : IAdminService
         return order is null ? null : MapOrder(order);
     }
 
-    public async Task UpdateOrderStatusAsync(long id, string status)
+    public async Task UpdateOrderStatusAsync(long id, string status, string? adminName = null)
     {
         var orderStatus = await _db.OrderStatuses.FirstOrDefaultAsync(s => s.Name == status)
             ?? throw new ArgumentException($"Невідомий статус: {status}");
 
-        var order = await _db.Orders.FindAsync(id)
+        var order = await _db.Orders
+            .Include(o => o.DeliveryMethod)
+            .Include(o => o.PaymentMethod)
+            .Include(o => o.User)
+            .FirstOrDefaultAsync(o => o.Id == id)
             ?? throw new KeyNotFoundException($"Замовлення {id} не знайдено");
+
+        var previousStatus = await _db.OrderStatuses
+            .Where(s => s.Id == order.StatusId)
+            .Select(s => s.Name)
+            .FirstOrDefaultAsync() ?? "";
 
         order.StatusId = orderStatus.Id;
         order.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        _ = _notifications.OnOrderStatusChangedAsync(order.Id, order.OrderNumber, orderStatus.Name)
+        var context = new Dictionary<string, string>
+        {
+            ["orderNumber"] = order.OrderNumber,
+            ["statusName"] = orderStatus.Name,
+            ["previousStatus"] = previousStatus,
+            ["customerName"] = order.Recipient.FullName,
+            ["customerPhone"] = order.Recipient.Phone ?? "",
+            ["customerEmail"] = order.User?.Email ?? order.Email ?? "",
+            ["total"] = order.Total.ToString("F2"),
+            ["deliveryCity"] = order.Delivery.City ?? "",
+            ["deliveryMethod"] = order.DeliveryMethod?.Name ?? "",
+            ["adminName"] = adminName ?? "",
+        };
+
+        _ = _notifications.OnOrderStatusChangedAsync(order.Id, order.OrderNumber, orderStatus.Name, context)
             .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
     }
 

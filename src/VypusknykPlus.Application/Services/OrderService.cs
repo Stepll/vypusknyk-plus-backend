@@ -102,7 +102,20 @@ public class OrderService : IOrderService
         _logger.LogInformation("Order {OrderNumber} created for user {UserId}, total {Total}",
             order.OrderNumber, userId, total);
 
-        _ = _notifications.OnNewOrderAsync(order.Id, order.OrderNumber, request.Recipient.FullName)
+        var notifContext = new Dictionary<string, string>
+        {
+            ["orderNumber"] = order.OrderNumber,
+            ["customerName"] = request.Recipient.FullName,
+            ["customerPhone"] = request.Recipient.Phone ?? "",
+            ["customerEmail"] = request.Email ?? "",
+            ["total"] = total.ToString("F2"),
+            ["itemCount"] = orderItems.Count.ToString(),
+            ["deliveryCity"] = request.Delivery.City ?? "",
+            ["deliveryMethod"] = deliveryMethod.Name,
+            ["paymentMethod"] = paymentMethod.Name,
+            ["comment"] = request.Comment ?? "",
+        };
+        _ = _notifications.OnNewOrderAsync(order.Id, order.OrderNumber, notifContext)
             .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
 
         var toEmail = request.Email;

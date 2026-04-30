@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VypusknykPlus.Application.DTOs;
@@ -34,7 +35,8 @@ public class AdminOrdersController : ControllerBase
     [HttpPatch("{id:long}/status")]
     public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateOrderStatusRequest request)
     {
-        await _admin.UpdateOrderStatusAsync(id, request.Status);
+        var adminName = User.FindFirstValue(ClaimTypes.Name) ?? "";
+        await _admin.UpdateOrderStatusAsync(id, request.Status, adminName);
         return NoContent();
     }
 }

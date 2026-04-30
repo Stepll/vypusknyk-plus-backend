@@ -14,4 +14,10 @@ public class NotificationTriggerConfig
 
     public bool SystemEnabled { get; set; }
     public string SystemAdminIds { get; set; } = "[]"; // JSON: long[]
+
+    public string? SystemTitle { get; set; }
+    public string? SystemMessage { get; set; }
+    public string? EmailSubject { get; set; }
+    public string? EmailMessage { get; set; }
+    public string? TelegramMessage { get; set; }
 }
