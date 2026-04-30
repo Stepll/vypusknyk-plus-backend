@@ -13,6 +13,9 @@ using VypusknykPlus.Api.Middleware;
 using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.Services;
 
+using VypusknykPlus.Application.Services.AuditLogs;
+using VypusknykPlus.Api.Infrastructure;
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(new ConfigurationBuilder()
         .AddJsonFile("appsettings.json")
@@ -41,8 +44,12 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Minio:Endpoint"]))
     throw new InvalidOperationException("MinIO endpoint is not configured. Set Minio__Endpoint environment variable.");
 
 // --- Database ---
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentAdminProvider, CurrentAdminProvider>();
+builder.Services.AddScoped<AuditInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+    options.UseNpgsql(connectionString)
+           .AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
 
 // --- Validation ---
 builder.Services.AddValidatorsFromAssemblyContaining<AppDbContext>();
@@ -99,6 +106,7 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<INotificationPushService, SignalRNotificationPushService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPageContentService, PageContentService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // --- SignalR ---
 builder.Services.AddSignalR();
