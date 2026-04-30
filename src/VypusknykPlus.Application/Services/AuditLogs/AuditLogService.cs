@@ -12,7 +12,7 @@ public class AuditLogService : IAuditLogService
     public AuditLogService(AppDbContext db) => _db = db;
 
     public async Task<PagedResponse<AuditLogResponse>> GetLogsAsync(
-        string? entityType,
+        string[]? entityTypes,
         long? entityId,
         long? adminId,
         string? action,
@@ -23,8 +23,8 @@ public class AuditLogService : IAuditLogService
     {
         var query = _db.AuditLogs.AsNoTracking();
 
-        if (!string.IsNullOrEmpty(entityType))
-            query = query.Where(a => a.EntityType == entityType);
+        if (entityTypes is { Length: > 0 })
+            query = query.Where(a => entityTypes.Contains(a.EntityType));
 
         if (entityId.HasValue)
             query = query.Where(a => a.EntityId == entityId.Value);

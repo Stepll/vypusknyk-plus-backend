@@ -17,7 +17,7 @@ public class AdminAuditLogsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResponse<AuditLogResponse>>> GetAll(
-        [FromQuery] string? entityType,
+        [FromQuery] string[]? entityTypes,
         [FromQuery] long? entityId,
         [FromQuery] long? adminId,
         [FromQuery] string? action,
@@ -26,6 +26,6 @@ public class AdminAuditLogsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
-        return Ok(await _auditLogs.GetLogsAsync(entityType, entityId, adminId, action, from, to, page, pageSize));
+        return Ok(await _auditLogs.GetLogsAsync(entityTypes, entityId, adminId, action, from, to, page, pageSize));
     }
 }

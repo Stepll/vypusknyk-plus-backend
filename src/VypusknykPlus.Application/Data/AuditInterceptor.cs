@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using VypusknykPlus.Application.Entities;
@@ -14,13 +15,24 @@ public class AuditInterceptor : SaveChangesInterceptor
     [
         typeof(Order), typeof(Product), typeof(User), typeof(Admin),
         typeof(Role), typeof(Delivery), typeof(Supplier),
-        typeof(ProductCategory), typeof(ProductSubcategory)
+        typeof(ProductCategory), typeof(ProductSubcategory),
+        typeof(StockProduct),
+        typeof(DeliveryMethod), typeof(PaymentMethod), typeof(OrderStatus),
+        typeof(NotificationTriggerConfig),
+        typeof(RibbonColor), typeof(RibbonMaterial), typeof(RibbonPrintColor),
+        typeof(RibbonFont), typeof(RibbonPrintType), typeof(RibbonEmblem),
+        typeof(ConstructorIncompatibility), typeof(ConstructorForcedText),
     ];
 
     private static readonly HashSet<string> ExcludedFields =
     [
         "IsDeleted", "CreatedAt", "UpdatedAt", "PasswordHash"
     ];
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public AuditInterceptor(ICurrentAdminProvider adminProvider)
     {
@@ -47,7 +59,7 @@ public class AuditInterceptor : SaveChangesInterceptor
         }
 
         var logs = _pending
-            .Where(p => p.EntityId > 0)
+            .Where(p => p.EntityId > 0 || p.EntityType == nameof(NotificationTriggerConfig))
             .Select(p => new AuditLog
             {
                 AdminId = p.AdminId,
@@ -71,19 +83,17 @@ public class AuditInterceptor : SaveChangesInterceptor
 
     private List<PendingAudit> CaptureChanges(DbContext context)
     {
-        var (adminId, adminName) = GetAdmin();
+        var admin = GetAdmin();
         var pending = new List<PendingAudit>();
 
+        // Standard entity tracking
         foreach (var entry in context.ChangeTracker.Entries()
             .Where(e => TrackedTypes.Contains(e.Metadata.ClrType)
                      && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
         {
+            var entityId = GetEntityId(entry);
             string action;
             string? changesJson = null;
-
-            var entityId = entry.Properties
-                .FirstOrDefault(p => p.Metadata.Name == "Id")
-                ?.CurrentValue is long id ? id : 0L;
 
             if (entry.State == EntityState.Deleted)
             {
@@ -109,16 +119,11 @@ public class AuditInterceptor : SaveChangesInterceptor
                     action = "Update";
                     var changes = entry.Properties
                         .Where(p => p.IsModified && !ExcludedFields.Contains(p.Metadata.Name))
-                        .Select(p => new
-                        {
-                            field = p.Metadata.Name,
-                            old = p.OriginalValue?.ToString(),
-                            @new = p.CurrentValue?.ToString()
-                        })
+                        .Select(p => new FieldChange(p.Metadata.Name, p.OriginalValue?.ToString(), p.CurrentValue?.ToString()))
                         .ToList();
 
                     if (changes.Count == 0) continue;
-                    changesJson = JsonSerializer.Serialize(changes);
+                    changesJson = JsonSerializer.Serialize(changes, JsonOpts);
                 }
             }
 
@@ -129,15 +134,102 @@ public class AuditInterceptor : SaveChangesInterceptor
                 EntityId = entry.State == EntityState.Added ? 0 : entityId,
                 Action = action,
                 ChangesJson = changesJson,
-                AdminId = adminId,
-                AdminName = adminName
+                AdminId = admin.AdminId,
+                AdminName = admin.AdminName
             });
         }
+
+        // Merge ConstructorIncompatibilityTarget child changes into parent entries
+        MergeChildChanges<ConstructorIncompatibilityTarget>(
+            context, pending, admin,
+            parentTypeName: nameof(ConstructorIncompatibility),
+            getRuleId: e => GetPropLong(e, "RuleId"),
+            getSlugOrValue: e => GetPropString(e, "SlugB"),
+            fieldName: "SlugsB");
+
+        // Merge ConstructorForcedTextValue child changes into parent entries
+        MergeChildChanges<ConstructorForcedTextValue>(
+            context, pending, admin,
+            parentTypeName: nameof(ConstructorForcedText),
+            getRuleId: e => GetPropLong(e, "RuleId"),
+            getSlugOrValue: e => GetPropString(e, "Value"),
+            fieldName: "Values");
 
         return pending;
     }
 
-    private (long? adminId, string adminName) GetAdmin() => _adminProvider.GetCurrent();
+    private void MergeChildChanges<TChild>(
+        DbContext context,
+        List<PendingAudit> pending,
+        (long? AdminId, string AdminName) admin,
+        string parentTypeName,
+        Func<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry, long> getRuleId,
+        Func<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry, string> getSlugOrValue,
+        string fieldName)
+    {
+        var childEntries = context.ChangeTracker.Entries()
+            .Where(e => e.Metadata.ClrType == typeof(TChild)
+                     && e.State is EntityState.Added or EntityState.Deleted)
+            .ToList();
+
+        if (childEntries.Count == 0) return;
+
+        foreach (var group in childEntries.GroupBy(getRuleId).Where(g => g.Key > 0))
+        {
+            var ruleId = group.Key;
+            var oldValues = group.Where(e => e.State == EntityState.Deleted)
+                .Select(e => getSlugOrValue(e)).OrderBy(s => s).ToList();
+            var newValues = group.Where(e => e.State == EntityState.Added)
+                .Select(e => getSlugOrValue(e)).OrderBy(s => s).ToList();
+
+            var slugChange = new FieldChange(fieldName,
+                oldValues.Count > 0 ? string.Join(", ", oldValues) : null,
+                newValues.Count > 0 ? string.Join(", ", newValues) : null);
+
+            var parentEntry = pending.FirstOrDefault(p =>
+                p.EntityType == parentTypeName && p.EntityId == ruleId && p.Action == "Update");
+
+            if (parentEntry is not null)
+            {
+                var existing = parentEntry.ChangesJson is not null
+                    ? JsonSerializer.Deserialize<List<FieldChange>>(parentEntry.ChangesJson, JsonOpts) ?? []
+                    : [];
+                existing.Add(slugChange);
+                parentEntry.ChangesJson = JsonSerializer.Serialize(existing, JsonOpts);
+            }
+            else
+            {
+                pending.Add(new PendingAudit
+                {
+                    EntityType = parentTypeName,
+                    EntityId = ruleId,
+                    Action = "Update",
+                    ChangesJson = JsonSerializer.Serialize(new[] { slugChange }, JsonOpts),
+                    AdminId = admin.AdminId,
+                    AdminName = admin.AdminName
+                });
+            }
+        }
+    }
+
+    private static long GetEntityId(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+        => entry.Properties.FirstOrDefault(p => p.Metadata.Name == "Id")?.CurrentValue is long id ? id : 0L;
+
+    private static long GetPropLong(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry, string name)
+        => entry.Properties.FirstOrDefault(p => p.Metadata.Name == name)?.CurrentValue is long v ? v :
+           entry.Properties.FirstOrDefault(p => p.Metadata.Name == name)?.OriginalValue is long ov ? ov : 0L;
+
+    private static string GetPropString(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry, string name)
+        => entry.Properties.FirstOrDefault(p => p.Metadata.Name == name)?.CurrentValue?.ToString()
+        ?? entry.Properties.FirstOrDefault(p => p.Metadata.Name == name)?.OriginalValue?.ToString()
+        ?? "";
+
+    private (long? AdminId, string AdminName) GetAdmin() => _adminProvider.GetCurrent();
+
+    private sealed record FieldChange(
+        [property: JsonPropertyName("field")] string Field,
+        [property: JsonPropertyName("old")] string? Old,
+        [property: JsonPropertyName("new")] string? New);
 
     private sealed class PendingAudit
     {

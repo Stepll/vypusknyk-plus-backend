@@ -6,7 +6,7 @@ namespace VypusknykPlus.Application.Services.AuditLogs;
 public interface IAuditLogService
 {
     Task<PagedResponse<AuditLogResponse>> GetLogsAsync(
-        string? entityType,
+        string[]? entityTypes,
         long? entityId,
         long? adminId,
         string? action,
