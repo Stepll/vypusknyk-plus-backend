@@ -9,4 +9,5 @@ public class EmailSettings
     public string FromEmail { get; set; } = string.Empty;
     public string FromName { get; set; } = "Випускник+";
     public string FrontendUrl { get; set; } = "http://localhost:5173";
+    public string AdminPanelUrl { get; set; } = "http://localhost:5174";
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.DTOs.Notifications;
 using VypusknykPlus.Application.Entities;
@@ -19,15 +20,18 @@ public class NotificationService : INotificationService
 
     private readonly AppDbContext _db;
     private readonly INotificationPushService _push;
+    private readonly string _adminPanelUrl;
 
-    public NotificationService(AppDbContext db, INotificationPushService push)
+    public NotificationService(AppDbContext db, INotificationPushService push, IOptions<EmailSettings> settings)
     {
         _db = db;
         _push = push;
+        _adminPanelUrl = settings.Value.AdminPanelUrl.TrimEnd('/');
     }
 
     public async Task OnNewOrderAsync(long orderId, string orderNumber, Dictionary<string, string> context)
     {
+        context["orderUrl"] = $"{_adminPanelUrl}/orders/{orderId}";
         var config = await _db.NotificationTriggerConfigs.FindAsync("new_order");
         if (config is null || !config.SystemEnabled) return;
 
@@ -53,6 +57,7 @@ public class NotificationService : INotificationService
 
     public async Task OnOrderStatusChangedAsync(long orderId, string orderNumber, string newStatusName, Dictionary<string, string> context)
     {
+        context["orderUrl"] = $"{_adminPanelUrl}/orders/{orderId}";
         await DispatchStatusTriggerAsync("order_status_changed", orderId, context);
         await DispatchStatusTriggerAsync($"order_status_changed:{newStatusName}", orderId, context);
     }
@@ -87,6 +92,7 @@ public class NotificationService : INotificationService
 
     public async Task OnNewUserAsync(long userId, Dictionary<string, string> context)
     {
+        context["userUrl"] = $"{_adminPanelUrl}/users/{userId}";
         var config = await _db.NotificationTriggerConfigs.FindAsync("new_user");
         if (config is null || !config.SystemEnabled) return;
 
