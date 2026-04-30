@@ -200,7 +200,28 @@ public class NotificationService : INotificationService
 
     private async Task DispatchAsync(List<long> adminIds, AdminNotification template)
     {
-        var notifications = adminIds.Select(adminId => new AdminNotification
+        // Super admin (id=0) is virtual — no DB row, only real-time push
+        if (adminIds.Contains(0))
+        {
+            var superAdminDto = ToDto(new AdminNotification
+            {
+                Id = 0,
+                AdminId = 0,
+                TriggerType = template.TriggerType,
+                Title = template.Title,
+                Body = template.Body,
+                EntityType = template.EntityType,
+                EntityId = template.EntityId,
+                IsRead = false,
+                CreatedAt = template.CreatedAt,
+            });
+            await _push.PushToAdminAsync(0, superAdminDto);
+        }
+
+        var dbAdminIds = adminIds.Where(id => id != 0).ToList();
+        if (dbAdminIds.Count == 0) return;
+
+        var notifications = dbAdminIds.Select(adminId => new AdminNotification
         {
             AdminId = adminId,
             TriggerType = template.TriggerType,
