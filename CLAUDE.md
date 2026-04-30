@@ -72,7 +72,12 @@ src/
     │   ├── ConstructorIncompatibility.cs  # TypeA, SlugA, TypeB, IsWarning, Message; Targets[]
     │   ├── ConstructorIncompatibilityTarget.cs  # RuleId FK, SlugB
     │   ├── ConstructorForcedText.cs       # TriggerType, TriggerSlug, TargetField, Message; Values[]
-    │   └── ConstructorForcedTextValue.cs  # RuleId FK, Value
+    │   ├── ConstructorForcedTextValue.cs  # RuleId FK, Value
+    │   ├── NotificationTriggerConfig.cs   # TriggerType (PK string), EmailEnabled/Recipients/Subject/Message,
+    │   │                                  # TelegramEnabled/UserIds/GroupEnabled/Message,
+    │   │                                  # SystemEnabled/AdminIds/Title/Message; Recipients/UserIds/AdminIds = JSON
+    │   └── AdminNotification.cs           # AdminId FK (long), TriggerType, Title, Body, EntityType?, EntityId?,
+    │                                      # IsRead, CreatedAt
     ├── Migrations/
     │   ├── InitialCreate
     │   ├── AddProductImages
@@ -92,7 +97,10 @@ src/
     │   ├── SplitEmblemSvgKeys              # DROP SvgKey → ADD SvgKeyLeft + SvgKeyRight
     │   ├── AddConstructorRulesTables       # ConstructorIncompatibilities + Targets + ForcedTexts + Values (CASCADE)
     │   ├── AddUserVerificationFields       # IsEmailVerified, IsNameVerified, IsPhoneVerified на User
-    │   └── AddEmailVerificationToken       # EmailVerificationTokens таблиця (Token, ExpiresAt, IsUsed, UserId FK)
+    │   ├── AddEmailVerificationToken       # EmailVerificationTokens таблиця (Token, ExpiresAt, IsUsed, UserId FK)
+    │   ├── AddNotifications                # NotificationTriggerConfigs (PK string) + AdminNotifications (AdminId FK)
+    │   └── AddNotificationTemplates        # +5 колонок на NotificationTriggerConfigs: SystemTitle, SystemMessage,
+    │                                       # EmailSubject, EmailMessage, TelegramMessage
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
@@ -133,6 +141,21 @@ src/
         ├── IDashboardService / DashboardService
         │   # GetSalesByCategoryAsync: агрегує OrderItems по ProductName → join in-memory до Products
         │   # (OrderItem не має ProductId FK — тільки Name string). period: week/month/year/all
+        ├── INotificationService / NotificationService
+        │   # OnNewOrderAsync(orderId, orderNumber, context) — тригер "new_order"
+        │   # OnOrderStatusChangedAsync(orderId, orderNumber, newStatusName, context) — тригер "order_status_changed"
+        │   #   + "order_status_changed:{statusName}" (обидва незалежно)
+        │   # OnNewUserAsync(userId, context) — тригер "new_user"
+        │   # context = Dictionary<string,string> — передається з caller-а, сервіс додає orderUrl/userUrl
+        │   # ApplyTemplate: {{variable}} підстановка; OrDefault: fallback якщо шаблон порожній
+        │   # System канал: DispatchAsync → INSERT AdminNotifications + SignalR PushToAdminAsync
+        │   # Email канал: SendEmailsAsync → SendRawEmailAsync до кожного отримувача
+        │   # Telegram — конфіг зберігається, відправки немає (не реалізовано)
+        │   # Super Admin (id=0): DispatchAsync пропускає DB INSERT, тільки SignalR push
+        │   # GetTriggerConfigsAsync, UpdateTriggerConfigAsync, GetMyNotificationsAsync,
+        │   # MarkReadAsync, MarkAllReadAsync, GetUnreadCountAsync
+        ├── INotificationPushService / SignalRNotificationPushService
+        │   # PushToAdminAsync(adminId, dto) → Hub.Clients.Group("admin:{id}").SendAsync("ReceiveAdminNotification")
         └── IDeliveryService / DeliveryService
             # GetSuppliers/Create/Update/Delete (soft)
             # GetDeliveries, GetDeliveryDetail (ThenInclude Transactions → ReceiveHistory)
@@ -229,6 +252,25 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 | POST | /api/v1/admin/ribbon-emblems/{id}/svg/left | Upload SVG ліва → MinIO `emblems/{id}-left.svg` |
 | POST | /api/v1/admin/ribbon-emblems/{id}/svg/right | Upload SVG права → MinIO `emblems/{id}-right.svg` |
 
+### Сповіщення адмінів
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/admin/notification-triggers | Список тригерів з конфігом |
+| PUT | /api/v1/admin/notification-triggers/{triggerType} | Оновити конфіг тригера |
+| GET | /api/v1/admin/notification-triggers/recipients | DB-адміни + Super Admin (id=0) для вибору отримувачів |
+| GET | /api/v1/admin/notifications | Мої сповіщення (?limit=50) |
+| GET | /api/v1/admin/notifications/unread-count | Кількість непрочитаних |
+| POST | /api/v1/admin/notifications/{id}/read | Позначити прочитаним |
+| POST | /api/v1/admin/notifications/read-all | Позначити всі прочитаними |
+
+**Тригери:** `new_order`, `order_status_changed`, `order_status_changed:{statusName}` (composite key), `new_user`
+
+**context dict (new_order):** orderNumber, orderUrl, customerName, customerPhone, customerEmail, total, itemCount, deliveryCity, deliveryMethod, paymentMethod, comment
+
+**context dict (order_status_changed):** orderNumber, orderUrl, statusName, previousStatus, customerName, customerPhone, customerEmail, total, deliveryCity, deliveryMethod, adminName
+
+**context dict (new_user):** fullName, userUrl, email, phone, registrationDate
+
 ### Конструктор — правила (нові)
 | Метод | Шлях | Опис |
 |-------|------|------|
@@ -292,6 +334,7 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 - **Admin**: `Admin:Email`, `Admin:Password`
 - **CORS**: `Cors__AllowedOrigins`
 - **MinIO**: `Minio__Endpoint`, `Minio__AccessKey`, `Minio__SecretKey`, `MINIO_PUBLIC_ENDPOINT`
+- **Email__AdminPanelUrl**: URL адмін-панелі для посилань у сповіщеннях; у docker-compose = `ADMIN_URL`
 - **Порт**: `5272` (dev), `8080` (Docker)
 
 ## Команди
