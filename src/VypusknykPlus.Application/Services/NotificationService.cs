@@ -20,12 +20,14 @@ public class NotificationService : INotificationService
 
     private readonly AppDbContext _db;
     private readonly INotificationPushService _push;
+    private readonly IEmailService _email;
     private readonly string _adminPanelUrl;
 
-    public NotificationService(AppDbContext db, INotificationPushService push, IOptions<EmailSettings> settings)
+    public NotificationService(AppDbContext db, INotificationPushService push, IEmailService email, IOptions<EmailSettings> settings)
     {
         _db = db;
         _push = push;
+        _email = email;
         _adminPanelUrl = settings.Value.AdminPanelUrl.TrimEnd('/');
     }
 
@@ -33,26 +35,31 @@ public class NotificationService : INotificationService
     {
         context["orderUrl"] = $"{_adminPanelUrl}/orders/{orderId}";
         var config = await _db.NotificationTriggerConfigs.FindAsync("new_order");
-        if (config is null || !config.SystemEnabled) return;
-
-        var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
-        if (adminIds.Count == 0) return;
+        if (config is null) return;
 
         var title = ApplyTemplate(config.SystemTitle, context)
             .OrDefault($"Нове замовлення #{context.GetValueOrDefault("orderNumber")}");
         var body = ApplyTemplate(config.SystemMessage, context)
             .OrDefault($"від {context.GetValueOrDefault("customerName")}");
 
-        await DispatchAsync(adminIds, new AdminNotification
+        if (config.SystemEnabled)
         {
-            TriggerType = "new_order",
-            Title = title,
-            Body = body,
-            EntityType = "order",
-            EntityId = orderId,
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+            var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
+            if (adminIds.Count > 0)
+                await DispatchAsync(adminIds, new AdminNotification
+                {
+                    TriggerType = "new_order",
+                    Title = title,
+                    Body = body,
+                    EntityType = "order",
+                    EntityId = orderId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        if (config.EmailEnabled)
+            await SendEmailsAsync(config, context, title);
     }
 
     public async Task OnOrderStatusChangedAsync(long orderId, string orderNumber, string newStatusName, Dictionary<string, string> context)
@@ -65,10 +72,7 @@ public class NotificationService : INotificationService
     private async Task DispatchStatusTriggerAsync(string triggerType, long orderId, Dictionary<string, string> context)
     {
         var config = await _db.NotificationTriggerConfigs.FindAsync(triggerType);
-        if (config is null || !config.SystemEnabled) return;
-
-        var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
-        if (adminIds.Count == 0) return;
+        if (config is null) return;
 
         var orderNumber = context.GetValueOrDefault("orderNumber", "");
         var statusName = context.GetValueOrDefault("statusName", "");
@@ -78,26 +82,31 @@ public class NotificationService : INotificationService
         var body = ApplyTemplate(config.SystemMessage, context)
             .OrDefault($"Замовлення #{orderNumber} → {statusName}");
 
-        await DispatchAsync(adminIds, new AdminNotification
+        if (config.SystemEnabled)
         {
-            TriggerType = triggerType,
-            Title = title,
-            Body = body,
-            EntityType = "order",
-            EntityId = orderId,
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+            var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
+            if (adminIds.Count > 0)
+                await DispatchAsync(adminIds, new AdminNotification
+                {
+                    TriggerType = triggerType,
+                    Title = title,
+                    Body = body,
+                    EntityType = "order",
+                    EntityId = orderId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        if (config.EmailEnabled)
+            await SendEmailsAsync(config, context, title);
     }
 
     public async Task OnNewUserAsync(long userId, Dictionary<string, string> context)
     {
         context["userUrl"] = $"{_adminPanelUrl}/users/{userId}";
         var config = await _db.NotificationTriggerConfigs.FindAsync("new_user");
-        if (config is null || !config.SystemEnabled) return;
-
-        var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
-        if (adminIds.Count == 0) return;
+        if (config is null) return;
 
         var fullName = context.GetValueOrDefault("fullName", "");
         var email = context.GetValueOrDefault("email", "");
@@ -107,16 +116,24 @@ public class NotificationService : INotificationService
         var body = ApplyTemplate(config.SystemMessage, context)
             .OrDefault(string.IsNullOrEmpty(email) ? fullName : $"{fullName} ({email})");
 
-        await DispatchAsync(adminIds, new AdminNotification
+        if (config.SystemEnabled)
         {
-            TriggerType = "new_user",
-            Title = title,
-            Body = body,
-            EntityType = "user",
-            EntityId = userId,
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
+            var adminIds = JsonSerializer.Deserialize<List<long>>(config.SystemAdminIds) ?? [];
+            if (adminIds.Count > 0)
+                await DispatchAsync(adminIds, new AdminNotification
+                {
+                    TriggerType = "new_user",
+                    Title = title,
+                    Body = body,
+                    EntityType = "user",
+                    EntityId = userId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        if (config.EmailEnabled)
+            await SendEmailsAsync(config, context, title);
     }
 
     public async Task<List<AdminNotificationDto>> GetMyNotificationsAsync(long adminId, int limit = 50)
@@ -196,6 +213,19 @@ public class NotificationService : INotificationService
         config.SystemMessage = request.SystemMessage;
 
         await _db.SaveChangesAsync();
+    }
+
+    private async Task SendEmailsAsync(NotificationTriggerConfig config, Dictionary<string, string> context, string fallbackSubject)
+    {
+        var recipients = JsonSerializer.Deserialize<List<string>>(config.EmailRecipients) ?? [];
+        if (recipients.Count == 0) return;
+
+        var subject = ApplyTemplate(config.EmailSubject, context).OrDefault(fallbackSubject);
+        var bodyText = ApplyTemplate(config.EmailMessage, context).OrDefault(fallbackSubject);
+        var htmlBody = bodyText.Replace("\n", "<br/>");
+
+        foreach (var email in recipients)
+            await _email.SendRawEmailAsync(email, subject, htmlBody);
     }
 
     private async Task DispatchAsync(List<long> adminIds, AdminNotification template)
