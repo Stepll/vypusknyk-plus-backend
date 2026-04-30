@@ -31,19 +31,6 @@ namespace VypusknykPlus.Application.Migrations
                     table.PrimaryKey("PK_AuditLogs", x => x.Id);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "PageContents",
-                columns: table => new
-                {
-                    Slug = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Data = table.Column<string>(type: "text", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PageContents", x => x.Slug);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_AuditLogs_AdminId",
                 table: "AuditLogs",
@@ -65,9 +52,6 @@ namespace VypusknykPlus.Application.Migrations
         {
             migrationBuilder.DropTable(
                 name: "AuditLogs");
-
-            migrationBuilder.DropTable(
-                name: "PageContents");
         }
     }
 }
