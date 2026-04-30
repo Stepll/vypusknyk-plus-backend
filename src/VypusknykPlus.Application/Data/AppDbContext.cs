@@ -54,6 +54,7 @@ public class AppDbContext : DbContext
 
     public DbSet<NotificationTriggerConfig> NotificationTriggerConfigs => Set<NotificationTriggerConfig>();
     public DbSet<AdminNotification> AdminNotifications => Set<AdminNotification>();
+    public DbSet<PageContent> PageContents => Set<PageContent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

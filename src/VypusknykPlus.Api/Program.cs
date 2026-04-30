@@ -98,6 +98,7 @@ builder.Services.AddScoped<IProductCategoryService, ProductCategoryService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<INotificationPushService, SignalRNotificationPushService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IPageContentService, PageContentService>();
 
 // --- SignalR ---
 builder.Services.AddSignalR();
@@ -202,6 +203,7 @@ using (var scope = app.Services.CreateScope())
         await db.Database.MigrateAsync();
         startupLogger.LogInformation("Migrations applied successfully");
         await InfoPageSeeder.SeedAsync(db);
+        await PageContentSeeder.SeedAsync(db);
         startupLogger.LogInformation("Info page seed completed");
 
         startupLogger.LogInformation("Ensuring MinIO bucket exists...");
