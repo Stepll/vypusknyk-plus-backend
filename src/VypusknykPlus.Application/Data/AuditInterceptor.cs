@@ -19,10 +19,7 @@ public class AuditInterceptor : SaveChangesInterceptor
 
     private static readonly HashSet<string> ExcludedFields =
     [
-        nameof(BaseEntity.IsDeleted),
-        nameof(BaseEntity.CreatedAt),
-        nameof(BaseEntity.UpdatedAt),
-        nameof(Admin.PasswordHash)
+        "IsDeleted", "CreatedAt", "UpdatedAt", "PasswordHash"
     ];
 
     public AuditInterceptor(ICurrentAdminProvider adminProvider)
@@ -42,8 +39,12 @@ public class AuditInterceptor : SaveChangesInterceptor
     {
         var context = eventData.Context!;
 
-        foreach (var p in _pending.Where(p => p.Action == "Create" && p.EntityRef is BaseEntity))
-            p.EntityId = ((BaseEntity)p.EntityRef!).Id;
+        foreach (var p in _pending.Where(p => p.Action == "Create" && p.EntityRef is not null))
+        {
+            var idProp = p.EntityRef!.GetType().GetProperty("Id");
+            if (idProp?.GetValue(p.EntityRef) is long id)
+                p.EntityId = id;
+        }
 
         var logs = _pending
             .Where(p => p.EntityId > 0)
@@ -74,12 +75,15 @@ public class AuditInterceptor : SaveChangesInterceptor
         var pending = new List<PendingAudit>();
 
         foreach (var entry in context.ChangeTracker.Entries()
-            .Where(e => TrackedTypes.Contains(e.Entity.GetType())
+            .Where(e => TrackedTypes.Contains(e.Metadata.ClrType)
                      && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
         {
-            var entity = (BaseEntity)entry.Entity;
             string action;
             string? changesJson = null;
+
+            var entityId = entry.Properties
+                .FirstOrDefault(p => p.Metadata.Name == "Id")
+                ?.CurrentValue is long id ? id : 0L;
 
             if (entry.State == EntityState.Deleted)
             {
@@ -89,15 +93,14 @@ public class AuditInterceptor : SaveChangesInterceptor
             {
                 action = "Create";
                 var snapshot = entry.Properties
-                    .Where(p => !ExcludedFields.Contains(p.Metadata.Name))
-                    .Where(p => p.CurrentValue is not null)
+                    .Where(p => !ExcludedFields.Contains(p.Metadata.Name) && p.CurrentValue is not null)
                     .ToDictionary(p => p.Metadata.Name, p => p.CurrentValue!.ToString());
                 changesJson = JsonSerializer.Serialize(snapshot);
             }
             else
             {
-                var isDeletedProp = entry.Property(nameof(BaseEntity.IsDeleted));
-                if (isDeletedProp.IsModified && isDeletedProp.CurrentValue is true)
+                var isDeletedProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "IsDeleted");
+                if (isDeletedProp?.IsModified == true && isDeletedProp.CurrentValue is true)
                 {
                     action = "Delete";
                 }
@@ -122,8 +125,8 @@ public class AuditInterceptor : SaveChangesInterceptor
             pending.Add(new PendingAudit
             {
                 EntityRef = entry.State == EntityState.Added ? entry.Entity : null,
-                EntityType = entry.Entity.GetType().Name,
-                EntityId = entry.State == EntityState.Added ? 0 : entity.Id,
+                EntityType = entry.Metadata.ClrType.Name,
+                EntityId = entry.State == EntityState.Added ? 0 : entityId,
                 Action = action,
                 ChangesJson = changesJson,
                 AdminId = adminId,
