@@ -34,19 +34,27 @@ src/
 │   │   ├── AdminWarehouseController.cs   # GET stats/categories/subcategories/products, POST transactions/products
 │   │   ├── AdminDeliveriesController.cs  # GET/POST deliveries, receive item, receive-all (→204)
 │   │   ├── AdminSuppliersController.cs   # CRUD постачальників
+│   │   ├── AdminAuditLogsController.cs   # GET /api/v1/admin/audit-logs (?entityTypes[], entityId, adminId, action, from, to, page, pageSize)
 │   │   ├── AdminRibbonPrintTypesController.cs  # CRUD /admin/ribbon-print-types
 │   │   ├── AdminRibbonEmblemsController.cs     # CRUD /admin/ribbon-emblems + POST svg/left, POST svg/right
 │   │   ├── AdminConstructorRulesController.cs  # CRUD /admin/constructor-rules/incompatibilities + /forced-texts
 │   │   ├── RibbonPrintTypesController.cs       # Public GET /api/v1/ribbon-print-types
 │   │   ├── RibbonEmblemsController.cs          # Public GET /api/v1/ribbon-emblems
 │   │   └── ConstructorRulesController.cs       # Public GET /api/v1/constructor/rules
+│   ├── Infrastructure/
+│   │   └── CurrentAdminProvider.cs  # ICurrentAdminProvider impl — читає adminId/adminName з IHttpContextAccessor claims
+│   │                                 # Super Admin: sub=0, name з env; DB admin: sub=adminId, name=FullName
 │   ├── Middleware/
 │   │   └── ExceptionHandlingMiddleware.cs  # ArgumentException→400, KeyNotFound→404, else→500
-│   └── Program.cs
+│   └── Program.cs  # AddHttpContextAccessor, AddScoped<ICurrentAdminProvider>, AddScoped<AuditInterceptor>
+│                    # AddDbContext factory pattern: (sp, options) => options.UseNpgsql(...).AddInterceptors(sp.GetRequiredService<AuditInterceptor>())
 │
 └── VypusknykPlus.Application/
     ├── Entities/
     │   ├── BaseEntity.cs          # Id (long), CreatedAt, UpdatedAt, IsDeleted
+    │   ├── AuditLog.cs            # NOT BaseEntity; AdminId (long?, nullable, no FK), AdminName (string),
+    │   │                          # EntityType (string), EntityId (long), Action (string),
+    │   │                          # ChangesJson (string?), CreatedAt (DateTime UTC)
     │   ├── User.cs                # + IsEmailVerified, IsNameVerified, IsPhoneVerified (bool)
     │   ├── EmailVerificationToken.cs  # Token (string), ExpiresAt, IsUsed, UserId FK; IsValid computed
     │   ├── Admin.cs               # LastLoginAt?, RoleId? FK → Role
@@ -99,14 +107,27 @@ src/
     │   ├── AddUserVerificationFields       # IsEmailVerified, IsNameVerified, IsPhoneVerified на User
     │   ├── AddEmailVerificationToken       # EmailVerificationTokens таблиця (Token, ExpiresAt, IsUsed, UserId FK)
     │   ├── AddNotifications                # NotificationTriggerConfigs (PK string) + AdminNotifications (AdminId FK)
-    │   └── AddNotificationTemplates        # +5 колонок на NotificationTriggerConfigs: SystemTitle, SystemMessage,
-    │                                       # EmailSubject, EmailMessage, TelegramMessage
+    │   ├── AddNotificationTemplates        # +5 колонок на NotificationTriggerConfigs: SystemTitle, SystemMessage,
+    │   │                                   # EmailSubject, EmailMessage, TelegramMessage
+    │   └── AddAuditLogs                    # AuditLogs table (AdminId long? NO FK, AdminName, EntityType, EntityId,
+    │                                       # Action, ChangesJson, CreatedAt); indexes на EntityType+EntityId, AdminId, CreatedAt
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
     ├── Data/
     │   ├── AppDbContext.cs        # Global query filters (!IsDeleted) на: User, Order, OrderItem,
     │   │                          # SavedDesign, CartItem, Product, Admin, Supplier, Delivery
+    │   ├── AuditInterceptor.cs    # SaveChangesInterceptor — трекає зміни 22 типів сутностей
+    │   │                          # SavingChangesAsync: CaptureChanges → _pending list
+    │   │                          # SavedChangesAsync: Detach non-AuditLog entities → INSERT AuditLogs
+    │   │                          # TrackedTypes (22): Order, Product, User, Admin, Role, Delivery, Supplier,
+    │   │                          #   ProductCategory, ProductSubcategory, StockProduct, DeliveryMethod,
+    │   │                          #   PaymentMethod, OrderStatus, NotificationTriggerConfig,
+    │   │                          #   RibbonColor, RibbonMaterial, RibbonPrintColor, RibbonFont,
+    │   │                          #   RibbonPrintType, RibbonEmblem, ConstructorIncompatibility, ConstructorForcedText
+    │   │                          # MergeChildChanges<T>: ConstructorIncompatibilityTarget/ForcedTextValue → parent entry
+    │   │                          # ВАЖЛИВО: Detach перед 2-м SaveChanges → запобігає re-save tracked entities
+    │   ├── ICurrentAdminProvider.cs  # Interface (Application layer): (long? AdminId, string AdminName) GetCurrent()
     │   └── Configurations/
     ├── DTOs/Admin/
     │   ├── WarehouseDtos.cs       # StockCategoryResponse, StockProductSummary, StockProductDetail,
@@ -122,6 +143,10 @@ src/
     │   └── DashboardChartResponse.cs # (розширено) SalesByCategoryResponse, SalesCategoryEntry,
     │                                  # SalesSubcategoryEntry, SalesProductEntry
     └── Services/
+        ├── IAuditLogService / AuditLogService
+        │   # GetLogsAsync(entityTypes[]?, entityId?, adminId?, action?, from?, to?, page, pageSize)
+        │   # entityTypes — масив для multi-filter (використовує .Contains)
+        │   # Повертає PagedResponse<AuditLogResponse>
         ├── IEmailService / EmailService   # SendPasswordResetEmailAsync, SendOrderConfirmationEmailAsync,
         │                                  # SendActivationEmailAsync (брендований HTML), SendRawEmailAsync
         ├── IAuthService / AuthService     # + VerifyEmailAsync(token), ResendActivationEmailAsync(userId)
@@ -271,6 +296,15 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 
 **context dict (new_user):** fullName, userUrl, email, phone, registrationDate
 
+### Аудит-лог
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/admin/audit-logs | Журнал дій адмінів (?entityTypes[], entityId, adminId, action, from, to, page, pageSize) |
+
+**TrackedTypes (22):** Order, Product, User, Admin, Role, Delivery, Supplier, ProductCategory, ProductSubcategory, StockProduct, DeliveryMethod, PaymentMethod, OrderStatus, NotificationTriggerConfig, + 6 ribbon types + ConstructorIncompatibility + ConstructorForcedText
+**Excluded fields:** PasswordHash, IsDeleted, CreatedAt, UpdatedAt
+**adminId=null** → система; **adminId=0** → Super Admin (немає рядка в Admins)
+
 ### Конструктор — правила (нові)
 | Метод | Шлях | Опис |
 |-------|------|------|
@@ -314,6 +348,7 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 
 ## Важливі патерни
 
+- **AuditInterceptor**: `SaveChangesInterceptor` → `SavingChangesAsync` захоплює зміни до save, `SavedChangesAsync` вставляє AuditLogs після save. Перед 2-м `SaveChangesAsync` — detach всіх non-AuditLog entities щоб уникнути re-save. Використовує `entry.Metadata.ClrType` (не `entry.Entity.GetType()`) — EF Core proxy-типи не кастяться напряму. `ICurrentAdminProvider` — interface в Application, `CurrentAdminProvider` — impl в Api (через `IHttpContextAccessor`). `AddDbContext` через factory pattern: `AddDbContext<AppDbContext>((sp, opts) => opts.UseNpgsql(...).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()))`.
 - **Global query filters** на Delivery і Supplier (як на всіх інших). При завантаженні через Include EF Core застосовує фільтр до JOIN — якщо є ризик null, завантажувати окремо з `IgnoreQueryFilters()`.
 - **EF Core JSONB**: `OwnsOne(e => e.Field, b => { b.ToJson(); })` — NamesData, RibbonCustomization
 - **Soft delete**: `IsDeleted = true`, ніколи не видаляти фізично
