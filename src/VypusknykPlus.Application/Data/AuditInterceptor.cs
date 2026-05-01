@@ -74,6 +74,14 @@ public class AuditInterceptor : SaveChangesInterceptor
 
         if (logs.Count > 0)
         {
+            // Detach everything except AuditLog to prevent accidental re-save of tracked entities
+            foreach (var entry in context.ChangeTracker.Entries()
+                .Where(e => e.Entity is not AuditLog)
+                .ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+
             context.Set<AuditLog>().AddRange(logs);
             await context.SaveChangesAsync(ct);
         }
