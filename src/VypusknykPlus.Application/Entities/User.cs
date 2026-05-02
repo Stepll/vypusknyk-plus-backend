@@ -10,6 +10,7 @@ public class User : BaseEntity
     public string? Phone { get; set; }
     public bool IsPhoneVerified { get; set; }
     public string? PasswordHash { get; set; }
+    public string? GoogleId { get; set; }
 
     public ICollection<Order> Orders { get; set; } = [];
     public ICollection<SavedDesign> SavedDesigns { get; set; } = [];

@@ -13,4 +13,5 @@ public interface IAuthService
     Task ResetPasswordAsync(ResetPasswordRequest request);
     Task VerifyEmailAsync(string token);
     Task ResendActivationEmailAsync(long userId);
+    Task<AuthResponse> GoogleLoginAsync(GoogleLoginRequest request);
 }

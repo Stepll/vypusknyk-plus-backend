@@ -77,6 +77,13 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Email успішно підтверджено" });
     }
 
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponse>> GoogleLogin([FromBody] GoogleLoginRequest request)
+    {
+        var response = await _authService.GoogleLoginAsync(request);
+        return Ok(response);
+    }
+
     [Authorize]
     [HttpPost("resend-activation")]
     public async Task<ActionResult> ResendActivation()

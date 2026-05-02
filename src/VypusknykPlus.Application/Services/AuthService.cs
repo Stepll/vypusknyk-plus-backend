@@ -1,7 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -339,6 +342,79 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
 
         return refreshToken;
+    }
+
+    public async Task<AuthResponse> GoogleLoginAsync(GoogleLoginRequest request)
+    {
+        using var http = new HttpClient();
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", request.AccessToken);
+
+        var googleUser = await http.GetFromJsonAsync<GoogleUserInfo>("https://www.googleapis.com/oauth2/v3/userinfo")
+            ?? throw new UnauthorizedAccessException("Не вдалося отримати дані від Google");
+
+        if (string.IsNullOrEmpty(googleUser.Email))
+            throw new UnauthorizedAccessException("Google акаунт не має email");
+
+        var user = await _db.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.GoogleId == googleUser.Sub && !u.IsDeleted);
+
+        if (user is null)
+        {
+            user = await _db.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Email == googleUser.Email && !u.IsGuest && !u.IsDeleted);
+
+            if (user is not null)
+            {
+                user.GoogleId = googleUser.Sub;
+                user.IsEmailVerified = true;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+                _logger.LogInformation("Google linked to existing user {Email}", user.Email);
+            }
+            else
+            {
+                user = new User
+                {
+                    Email = googleUser.Email,
+                    FullName = googleUser.Name ?? googleUser.Email.Split('@')[0],
+                    GoogleId = googleUser.Sub,
+                    IsEmailVerified = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.Users.Add(user);
+                await _db.SaveChangesAsync();
+                _logger.LogInformation("New user created via Google: {Email}", user.Email);
+
+                var capturedId = user.Id;
+                var capturedEmail = user.Email!;
+                var capturedFullName = user.FullName;
+
+                _ = ClaimGuestOrdersInBackgroundAsync(capturedId, capturedEmail)
+                    .ContinueWith(t => _logger.LogError(t.Exception, "Failed to claim guest orders for {Email}", capturedEmail),
+                        TaskContinuationOptions.OnlyOnFaulted);
+
+                var notifContext = new Dictionary<string, string>
+                {
+                    ["fullName"] = capturedFullName,
+                    ["email"] = capturedEmail,
+                    ["phone"] = "",
+                    ["registrationDate"] = DateTime.UtcNow.ToString("dd.MM.yyyy HH:mm"),
+                };
+                _ = _notifications.OnNewUserAsync(capturedId, notifContext)
+                    .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
+            }
+        }
+
+        return await ToAuthResponse(user);
+    }
+
+    private class GoogleUserInfo
+    {
+        [JsonPropertyName("sub")] public string Sub { get; set; } = string.Empty;
+        [JsonPropertyName("email")] public string Email { get; set; } = string.Empty;
+        [JsonPropertyName("name")] public string? Name { get; set; }
+        [JsonPropertyName("email_verified")] public bool EmailVerified { get; set; }
     }
 
     private static string GenerateSecureToken()
