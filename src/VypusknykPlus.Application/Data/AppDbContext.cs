@@ -57,6 +57,12 @@ public class AppDbContext : DbContext
     public DbSet<PageContent> PageContents => Set<PageContent>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+    public DbSet<PromoCode> PromoCodes => Set<PromoCode>();
+    public DbSet<UserPromoCodeCard> UserPromoCodeCards => Set<UserPromoCodeCard>();
+    public DbSet<PromoCodeUsage> PromoCodeUsages => Set<PromoCodeUsage>();
+    public DbSet<PromotionUsage> PromotionUsages => Set<PromotionUsage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -87,6 +93,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ConstructorForcedText>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<ChatConversation>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<ChatMessage>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<Promotion>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<PromoCode>().HasQueryFilter(e => !e.IsDeleted);
 
         modelBuilder.Entity<NotificationTriggerConfig>().HasKey(c => c.TriggerType);
 

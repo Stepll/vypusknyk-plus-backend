@@ -28,4 +28,12 @@ public class Order : BaseEntity
     public User? User { get; set; }
 
     public ICollection<OrderItem> Items { get; set; } = [];
+
+    public long? PromotionId { get; set; }
+    public Promotion? Promotion { get; set; }
+    public decimal PromotionDiscount { get; set; }
+
+    public long? PromoCodeId { get; set; }
+    public PromoCode? PromoCode { get; set; }
+    public decimal PromoCodeDiscount { get; set; }
 }

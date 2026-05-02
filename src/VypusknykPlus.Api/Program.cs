@@ -107,6 +107,7 @@ builder.Services.AddScoped<INotificationPushService, SignalRNotificationPushServ
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPageContentService, PageContentService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IPromotionService, PromotionService>();
 
 // --- SignalR ---
 builder.Services.AddSignalR();

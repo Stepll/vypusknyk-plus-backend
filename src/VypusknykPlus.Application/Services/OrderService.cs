@@ -13,13 +13,15 @@ public class OrderService : IOrderService
     private readonly IEmailService _email;
     private readonly ILogger<OrderService> _logger;
     private readonly INotificationService _notifications;
+    private readonly IPromotionService _promotions;
 
-    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications)
+    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications, IPromotionService promotions)
     {
         _db = db;
         _email = email;
         _logger = logger;
         _notifications = notifications;
+        _promotions = promotions;
     }
 
     public async Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request)
@@ -58,10 +60,13 @@ public class OrderService : IOrderService
             UpdatedAt = DateTime.UtcNow
         }).ToList();
 
-        var total = orderItems.Sum(i => i.Quantity * i.Price);
+        var originalTotal = orderItems.Sum(i => i.Quantity * i.Price);
 
         if (!userId.HasValue && !string.IsNullOrWhiteSpace(request.Recipient.Phone))
             userId = await FindOrCreateGuestUserAsync(request.Recipient.Phone, request.Recipient.FullName);
+
+        var discount = await _promotions.CalculateDiscountAsync(originalTotal, request.UserPromoCardId, userId);
+        var total = discount.FinalTotal;
 
         var order = new Order
         {
@@ -71,6 +76,10 @@ public class OrderService : IOrderService
                 .Select(s => s.Id)
                 .FirstAsync(),
             Total = total,
+            PromotionId = discount.AppliedPromotion?.Id,
+            PromotionDiscount = discount.PromotionDiscount,
+            PromoCodeId = discount.AppliedPromoCode?.Id,
+            PromoCodeDiscount = discount.PromoCodeDiscount,
             DeliveryMethodId = deliveryMethod.Id,
             DeliveryMethod = deliveryMethod,
             Delivery = new DeliveryInfo
@@ -99,6 +108,11 @@ public class OrderService : IOrderService
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
 
+        await _promotions.RecordUsagesAsync(
+            order.Id, userId,
+            discount.AppliedPromotion?.Id, discount.PromotionDiscount,
+            discount.AppliedPromoCode?.Id, discount.PromoCodeDiscount);
+
         _logger.LogInformation("Order {OrderNumber} created for user {UserId}, total {Total}",
             order.OrderNumber, userId, total);
 
@@ -108,7 +122,7 @@ public class OrderService : IOrderService
             ["customerName"] = request.Recipient.FullName,
             ["customerPhone"] = request.Recipient.Phone ?? "",
             ["customerEmail"] = request.Email ?? "",
-            ["total"] = total.ToString("F2"),
+            ["total"] = originalTotal.ToString("F2"),
             ["itemCount"] = orderItems.Count.ToString(),
             ["deliveryCity"] = request.Delivery.City ?? "",
             ["deliveryMethod"] = deliveryMethod.Name,

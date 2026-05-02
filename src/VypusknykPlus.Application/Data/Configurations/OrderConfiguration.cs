@@ -51,6 +51,21 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
 
+        builder.HasOne(o => o.Promotion)
+            .WithMany(p => p.Orders)
+            .HasForeignKey(o => o.PromotionId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        builder.HasOne(o => o.PromoCode)
+            .WithMany(p => p.Orders)
+            .HasForeignKey(o => o.PromoCodeId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        builder.Property(o => o.PromotionDiscount).HasPrecision(10, 2);
+        builder.Property(o => o.PromoCodeDiscount).HasPrecision(10, 2);
+
         builder.HasIndex(o => o.UserId);
         builder.HasIndex(o => o.GuestToken);
         builder.HasIndex(o => o.OrderNumber).IsUnique();

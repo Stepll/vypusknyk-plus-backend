@@ -35,4 +35,5 @@ public class CreateOrderRequest
     public string? Email { get; set; }
     public string? Comment { get; set; }
     public string? GuestToken { get; set; }
+    public long? UserPromoCardId { get; set; }
 }
