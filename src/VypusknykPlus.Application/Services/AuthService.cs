@@ -386,6 +386,8 @@ public class AuthService : IAuthService
                 await _db.SaveChangesAsync();
                 _logger.LogInformation("New user created via Google: {Email}", user.Email);
 
+                var authResponse = await ToAuthResponse(user);
+
                 var capturedId = user.Id;
                 var capturedEmail = user.Email!;
                 var capturedFullName = user.FullName;
@@ -403,6 +405,8 @@ public class AuthService : IAuthService
                 };
                 _ = _notifications.OnNewUserAsync(capturedId, notifContext)
                     .ContinueWith(t => { }, TaskContinuationOptions.OnlyOnFaulted);
+
+                return authResponse;
             }
         }
 
