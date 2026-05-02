@@ -309,7 +309,7 @@ public class PromotionService(AppDbContext db) : IPromotionService
         {
             var card = await db.UserPromoCodeCards
                 .Include(c => c.PromoCode)
-                .FirstOrDefaultAsync(c => c.Id == userPromoCardId && c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.PromoCodeId == userPromoCardId && c.UserId == userId);
 
             if (card != null)
             {
