@@ -30,6 +30,7 @@ public class AdminUserDetailResponse
     public DateTime CreatedAt { get; set; }
     public List<AdminUserOrderSummary> Orders { get; set; } = [];
     public List<AdminUserSavedDesign> SavedDesigns { get; set; } = [];
+    public bool HasGoogleId { get; set; }
 }
 
 public class PatchUserInfoRequest

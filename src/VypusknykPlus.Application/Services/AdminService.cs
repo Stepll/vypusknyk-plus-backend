@@ -387,6 +387,7 @@ public class AdminService : IAdminService
             Phone = user.Phone,
             IsPhoneVerified = user.IsPhoneVerified,
             CreatedAt = user.CreatedAt,
+            HasGoogleId = user.GoogleId != null,
             Orders = user.Orders
                 .OrderByDescending(o => o.CreatedAt)
                 .Select(o => new AdminUserOrderSummary
