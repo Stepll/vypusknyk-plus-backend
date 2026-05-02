@@ -346,6 +346,7 @@ public class AdminService : IAdminService
                 IsPhoneVerified = u.IsPhoneVerified,
                 CreatedAt = u.CreatedAt,
                 OrdersCount = u.Orders.Count,
+                HasGoogleId = u.GoogleId != null,
             })
             .ToListAsync();
 

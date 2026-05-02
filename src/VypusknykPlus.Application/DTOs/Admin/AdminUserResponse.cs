@@ -12,4 +12,5 @@ public class AdminUserResponse
     public bool IsPhoneVerified { get; set; }
     public DateTime CreatedAt { get; set; }
     public int OrdersCount { get; set; }
+    public bool HasGoogleId { get; set; }
 }
