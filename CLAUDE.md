@@ -56,6 +56,7 @@ src/
     │   │                          # EntityType (string), EntityId (long), Action (string),
     │   │                          # ChangesJson (string?), CreatedAt (DateTime UTC)
     │   ├── User.cs                # + IsEmailVerified, IsNameVerified, IsPhoneVerified (bool)
+    │   │                          # + GoogleId (string?, nullable) — встановлюється при Google OAuth
     │   ├── EmailVerificationToken.cs  # Token (string), ExpiresAt, IsUsed, UserId FK; IsValid computed
     │   ├── Admin.cs               # LastLoginAt?, RoleId? FK → Role
     │   ├── Role.cs                # Name, Color, Pages (text[]), IsSuperAdmin; soft delete
@@ -109,8 +110,9 @@ src/
     │   ├── AddNotifications                # NotificationTriggerConfigs (PK string) + AdminNotifications (AdminId FK)
     │   ├── AddNotificationTemplates        # +5 колонок на NotificationTriggerConfigs: SystemTitle, SystemMessage,
     │   │                                   # EmailSubject, EmailMessage, TelegramMessage
-    │   └── AddAuditLogs                    # AuditLogs table (AdminId long? NO FK, AdminName, EntityType, EntityId,
-    │                                       # Action, ChangesJson, CreatedAt); indexes на EntityType+EntityId, AdminId, CreatedAt
+    │   ├── AddAuditLogs                    # AuditLogs table (AdminId long? NO FK, AdminName, EntityType, EntityId,
+    │   │                                   # Action, ChangesJson, CreatedAt); indexes на EntityType+EntityId, AdminId, CreatedAt
+    │   └── AddGoogleIdToUser               # GoogleId (text, nullable) на Users
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
@@ -150,6 +152,12 @@ src/
         ├── IEmailService / EmailService   # SendPasswordResetEmailAsync, SendOrderConfirmationEmailAsync,
         │                                  # SendActivationEmailAsync (брендований HTML), SendRawEmailAsync
         ├── IAuthService / AuthService     # + VerifyEmailAsync(token), ResendActivationEmailAsync(userId)
+        │                                  # + GoogleLoginAsync(GoogleLoginRequest) → POST /api/v1/auth/google
+        │                                  #   Верифікує access_token через GET googleapis.com/oauth2/v3/userinfo
+        │                                  #   Знаходить за GoogleId → або за Email → або створює нового юзера
+        │                                  #   IsEmailVerified=true для нових Google-юзерів
+        │                                  #   ВАЖЛИВО: ToAuthResponse() мусить бути ПЕРЕД fire-and-forget задачами
+        │                                  #   (інакше DbContext concurrency error)
         │                                  # RegisterAsync: fire-and-forget SendActivationEmailInBackgroundAsync
         │                                  #   + ClaimGuestOrdersInBackgroundAsync — обидва через IServiceScopeFactory
         │                                  # ВАЖЛИВО: fire-and-forget мусить створювати scope через
@@ -211,6 +219,7 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 ### Auth (публічні + авторизовані)
 | Метод | Шлях | Опис |
 |-------|------|------|
+| POST | /api/v1/auth/google | Google OAuth login/register ({ accessToken }) → AuthResponse |
 | GET | /api/v1/auth/verify-email?token= | Підтвердити email за токеном → 200/400 |
 | POST | /api/v1/auth/resend-activation | Повторно надіслати лист активації (Authorize) → 204 |
 
@@ -370,6 +379,7 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 - **CORS**: `Cors__AllowedOrigins`
 - **MinIO**: `Minio__Endpoint`, `Minio__AccessKey`, `Minio__SecretKey`, `MINIO_PUBLIC_ENDPOINT`
 - **Email__AdminPanelUrl**: URL адмін-панелі для посилань у сповіщеннях; у docker-compose = `ADMIN_URL`
+- **Google__ClientId**: OAuth 2.0 Client ID (не використовується для верифікації — лише placeholder); env var `GOOGLE_CLIENT_ID` в `.env`
 - **Порт**: `5272` (dev), `8080` (Docker)
 
 ## Команди
