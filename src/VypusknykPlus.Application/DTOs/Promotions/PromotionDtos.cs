@@ -119,6 +119,7 @@ public class CalculateDiscountRequest
 {
     public decimal OrderTotal { get; set; }
     public long? UserPromoCardId { get; set; }
+    public List<long> ProductIds { get; set; } = [];
 }
 
 public class CalculateDiscountResponse

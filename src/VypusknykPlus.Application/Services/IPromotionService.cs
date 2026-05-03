@@ -22,6 +22,6 @@ public interface IPromotionService
     Task<PromoCodeCardResponse> ActivatePromoCodeAsync(string code, long userId);
 
     // Checkout
-    Task<CalculateDiscountResponse> CalculateDiscountAsync(decimal orderTotal, long? userPromoCardId, long? userId);
+    Task<CalculateDiscountResponse> CalculateDiscountAsync(decimal orderTotal, long? userPromoCardId, long? userId, List<long>? productIds = null);
     Task RecordUsagesAsync(long orderId, long? userId, long? promotionId, decimal promotionDiscount, long? promoCodeId, decimal promoCodeDiscount);
 }

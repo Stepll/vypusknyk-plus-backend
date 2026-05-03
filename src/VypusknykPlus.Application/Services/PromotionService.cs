@@ -257,18 +257,41 @@ public class PromotionService(AppDbContext db) : IPromotionService
     // ─── Checkout ──────────────────────────────────────────────────────────────
 
     public async Task<CalculateDiscountResponse> CalculateDiscountAsync(
-        decimal orderTotal, long? userPromoCardId, long? userId)
+        decimal orderTotal, long? userPromoCardId, long? userId, List<long>? productIds = null)
     {
         var now = DateTime.UtcNow;
+        productIds ??= [];
 
-        // Find best active global promotion
-        var promotions = await db.Promotions
+        // Resolve category/subcategory IDs for cart products
+        HashSet<long> cartCategoryIds = [];
+        HashSet<long> cartSubcategoryIds = [];
+        if (productIds.Count > 0)
+        {
+            var products = await db.Products
+                .Where(p => productIds.Contains(p.Id))
+                .Select(p => new { p.CategoryId, p.SubcategoryId })
+                .ToListAsync();
+
+            foreach (var p in products)
+            {
+                cartCategoryIds.Add(p.CategoryId);
+                if (p.SubcategoryId.HasValue) cartSubcategoryIds.Add(p.SubcategoryId.Value);
+            }
+        }
+
+        // Find best active promotion matching scope
+        var promotions = (await db.Promotions
             .Where(p => p.IsActive
-                && p.Scope == PromotionScope.Global
                 && (p.StartsAt == null || p.StartsAt <= now)
                 && (p.EndsAt == null || p.EndsAt >= now)
                 && (p.MinOrderAmount == null || p.MinOrderAmount <= orderTotal))
-            .ToListAsync();
+            .ToListAsync())
+            .Where(p =>
+                p.Scope == PromotionScope.Global ||
+                (p.Scope == PromotionScope.Category && p.CategoryId.HasValue && cartCategoryIds.Contains(p.CategoryId.Value)) ||
+                (p.Scope == PromotionScope.Subcategory && p.SubcategoryId.HasValue && cartSubcategoryIds.Contains(p.SubcategoryId.Value)) ||
+                (p.Scope == PromotionScope.Product && p.ProductId.HasValue && productIds.Contains(p.ProductId.Value)))
+            .ToList();
 
         if (userId.HasValue)
         {

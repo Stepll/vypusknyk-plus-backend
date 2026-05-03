@@ -61,11 +61,16 @@ public class OrderService : IOrderService
         }).ToList();
 
         var originalTotal = orderItems.Sum(i => i.Quantity * i.Price);
+        var cartProductIds = request.Items
+            .Where(i => i.ProductId.HasValue)
+            .Select(i => (long)i.ProductId!.Value)
+            .Distinct()
+            .ToList();
 
         if (!userId.HasValue && !string.IsNullOrWhiteSpace(request.Recipient.Phone))
             userId = await FindOrCreateGuestUserAsync(request.Recipient.Phone, request.Recipient.FullName);
 
-        var discount = await _promotions.CalculateDiscountAsync(originalTotal, request.UserPromoCardId, userId);
+        var discount = await _promotions.CalculateDiscountAsync(originalTotal, request.UserPromoCardId, userId, cartProductIds);
         var total = discount.FinalTotal;
 
         var order = new Order

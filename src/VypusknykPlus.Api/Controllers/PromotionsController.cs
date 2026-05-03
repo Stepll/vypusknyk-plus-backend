@@ -35,7 +35,7 @@ public class PromotionsController(IPromotionService promotions) : ControllerBase
     public async Task<ActionResult<CalculateDiscountResponse>> Calculate([FromBody] CalculateDiscountRequest request)
     {
         long? userId = User.Identity?.IsAuthenticated == true ? GetUserIdOrNull() : null;
-        return Ok(await promotions.CalculateDiscountAsync(request.OrderTotal, request.UserPromoCardId, userId));
+        return Ok(await promotions.CalculateDiscountAsync(request.OrderTotal, request.UserPromoCardId, userId, request.ProductIds));
     }
 
     private long GetUserId() =>
