@@ -28,6 +28,17 @@ public class AdminOrderResponse
     public AdminRecipientResponse Recipient { get; set; } = new();
     public AdminDeliveryResponse Delivery { get; set; } = new();
     public List<AdminOrderItemResponse> Items { get; set; } = [];
+
+    // Discounts
+    public decimal PromotionDiscount { get; set; }
+    public string? PromotionName { get; set; }
+    public string? PromotionDiscountType { get; set; }
+    public decimal? PromotionDiscountValue { get; set; }
+
+    public decimal PromoCodeDiscount { get; set; }
+    public string? PromoCodeDisplayName { get; set; }
+    public string? PromoCodeDiscountType { get; set; }
+    public decimal? PromoCodeDiscountValue { get; set; }
 }
 
 public class AdminRecipientResponse

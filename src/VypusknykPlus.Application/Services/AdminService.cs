@@ -30,6 +30,8 @@ public class AdminService : IAdminService
             .Include(o => o.OrderStatus)
             .Include(o => o.DeliveryMethod)
             .Include(o => o.PaymentMethod)
+            .Include(o => o.Promotion)
+            .Include(o => o.PromoCode)
             .AsNoTracking()
             .AsQueryable();
 
@@ -59,6 +61,8 @@ public class AdminService : IAdminService
             .Include(o => o.OrderStatus)
             .Include(o => o.DeliveryMethod)
             .Include(o => o.PaymentMethod)
+            .Include(o => o.Promotion)
+            .Include(o => o.PromoCode)
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == id);
 
@@ -745,5 +749,15 @@ public class AdminService : IAdminService
             NamesData = i.NamesData,
             RibbonCustomization = i.RibbonCustomization,
         }).ToList(),
+
+        PromotionDiscount = o.PromotionDiscount,
+        PromotionName = o.Promotion?.Name,
+        PromotionDiscountType = o.Promotion != null ? o.Promotion.DiscountType.ToString() : null,
+        PromotionDiscountValue = o.Promotion?.DiscountValue,
+
+        PromoCodeDiscount = o.PromoCodeDiscount,
+        PromoCodeDisplayName = o.PromoCode?.DisplayName,
+        PromoCodeDiscountType = o.PromoCode != null ? o.PromoCode.DiscountType.ToString() : null,
+        PromoCodeDiscountValue = o.PromoCode?.DiscountValue,
     };
 }
