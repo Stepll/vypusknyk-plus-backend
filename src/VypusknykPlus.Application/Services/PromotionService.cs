@@ -437,9 +437,7 @@ public class PromotionService(AppDbContext db) : IPromotionService
                 && (targetCatIds.Contains(cat.CategoryId) || (cat.SubcategoryId.HasValue && targetSubIds.Contains(cat.SubcategoryId.Value))))
             .Sum(i => i.Qty * i.UnitPrice);
 
-        return matchingTotal == 0
-            ? CalcDiscount(p.DiscountType, p.DiscountValue, orderTotal)
-            : CalcDiscount(p.DiscountType, p.DiscountValue, matchingTotal);
+        return CalcDiscount(p.DiscountType, p.DiscountValue, matchingTotal);
     }
 
     private static decimal CalcVolumeDiscount(
