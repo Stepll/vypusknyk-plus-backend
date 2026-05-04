@@ -58,6 +58,9 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public DbSet<Promotion> Promotions => Set<Promotion>();
+    public DbSet<PromotionTargetCategory> PromotionTargetCategories => Set<PromotionTargetCategory>();
+    public DbSet<PromotionVolumeTier> PromotionVolumeTiers => Set<PromotionVolumeTier>();
+    public DbSet<PromotionBundleItem> PromotionBundleItems => Set<PromotionBundleItem>();
     public DbSet<PromoCode> PromoCodes => Set<PromoCode>();
     public DbSet<UserPromoCodeCard> UserPromoCodeCards => Set<UserPromoCodeCard>();
     public DbSet<PromoCodeUsage> PromoCodeUsages => Set<PromoCodeUsage>();

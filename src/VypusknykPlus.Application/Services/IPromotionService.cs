@@ -6,6 +6,7 @@ public interface IPromotionService
 {
     // Admin — Promotions
     Task<List<AdminPromotionResponse>> GetAdminPromotionsAsync();
+    Task<AdminPromotionResponse> GetAdminPromotionAsync(long id);
     Task<AdminPromotionResponse> CreatePromotionAsync(SavePromotionRequest request);
     Task<AdminPromotionResponse> UpdatePromotionAsync(long id, SavePromotionRequest request);
     Task DeletePromotionAsync(long id);
@@ -22,6 +23,6 @@ public interface IPromotionService
     Task<PromoCodeCardResponse> ActivatePromoCodeAsync(string code, long userId);
 
     // Checkout
-    Task<CalculateDiscountResponse> CalculateDiscountAsync(decimal orderTotal, long? userPromoCardId, long? userId, List<long>? productIds = null);
+    Task<CalculateDiscountResponse> CalculateDiscountAsync(decimal orderTotal, long? userPromoCardId, long? userId, List<CartItemForDiscount>? items = null);
     Task RecordUsagesAsync(long orderId, long? userId, long? promotionId, decimal promotionDiscount, long? promoCodeId, decimal promoCodeDiscount);
 }

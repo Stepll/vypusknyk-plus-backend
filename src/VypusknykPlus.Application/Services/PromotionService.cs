@@ -14,14 +14,18 @@ public class PromotionService(AppDbContext db) : IPromotionService
         var items = await db.Promotions
             .IgnoreQueryFilters()
             .Where(p => !p.IsDeleted)
-            .Include(p => p.Category)
-            .Include(p => p.Subcategory)
-            .Include(p => p.Product)
+            .Include(p => p.TargetCategories).ThenInclude(t => t.Category)
+            .Include(p => p.TargetCategories).ThenInclude(t => t.Subcategory)
+            .Include(p => p.VolumeTiers)
+            .Include(p => p.BundleItems).ThenInclude(b => b.Subcategory)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
         return items.Select(MapAdminPromotion).ToList();
     }
+
+    public async Task<AdminPromotionResponse> GetAdminPromotionAsync(long id) =>
+        await ReloadPromotion(id);
 
     public async Task<AdminPromotionResponse> CreatePromotionAsync(SavePromotionRequest request)
     {
@@ -32,9 +36,6 @@ public class PromotionService(AppDbContext db) : IPromotionService
             DiscountType = ParseDiscountType(request.DiscountType),
             DiscountValue = request.DiscountValue,
             Scope = ParseScope(request.Scope),
-            CategoryId = request.CategoryId,
-            SubcategoryId = request.SubcategoryId,
-            ProductId = request.ProductId,
             MinOrderAmount = request.MinOrderAmount,
             StartsAt = request.StartsAt,
             EndsAt = request.EndsAt,
@@ -47,20 +48,16 @@ public class PromotionService(AppDbContext db) : IPromotionService
         db.Promotions.Add(entity);
         await db.SaveChangesAsync();
 
-        await db.Entry(entity).Reference(p => p.Category).LoadAsync();
-        await db.Entry(entity).Reference(p => p.Subcategory).LoadAsync();
-        await db.Entry(entity).Reference(p => p.Product).LoadAsync();
+        await SaveTargets(entity.Id, request);
+        await db.SaveChangesAsync();
 
-        return MapAdminPromotion(entity);
+        return await ReloadPromotion(entity.Id);
     }
 
     public async Task<AdminPromotionResponse> UpdatePromotionAsync(long id, SavePromotionRequest request)
     {
         var entity = await db.Promotions
             .IgnoreQueryFilters()
-            .Include(p => p.Category)
-            .Include(p => p.Subcategory)
-            .Include(p => p.Product)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
             ?? throw new KeyNotFoundException($"Promotion {id} not found");
 
@@ -69,9 +66,6 @@ public class PromotionService(AppDbContext db) : IPromotionService
         entity.DiscountType = ParseDiscountType(request.DiscountType);
         entity.DiscountValue = request.DiscountValue;
         entity.Scope = ParseScope(request.Scope);
-        entity.CategoryId = request.CategoryId;
-        entity.SubcategoryId = request.SubcategoryId;
-        entity.ProductId = request.ProductId;
         entity.MinOrderAmount = request.MinOrderAmount;
         entity.StartsAt = request.StartsAt;
         entity.EndsAt = request.EndsAt;
@@ -79,8 +73,16 @@ public class PromotionService(AppDbContext db) : IPromotionService
         entity.IsOneTimePerUser = request.IsOneTimePerUser;
         entity.UpdatedAt = DateTime.UtcNow;
 
+        // Replace targets, tiers, bundle items
+        await db.PromotionTargetCategories.Where(t => t.PromotionId == id).ExecuteDeleteAsync();
+        await db.PromotionVolumeTiers.Where(t => t.PromotionId == id).ExecuteDeleteAsync();
+        await db.PromotionBundleItems.Where(b => b.PromotionId == id).ExecuteDeleteAsync();
+
         await db.SaveChangesAsync();
-        return MapAdminPromotion(entity);
+        await SaveTargets(id, request);
+        await db.SaveChangesAsync();
+
+        return await ReloadPromotion(id);
     }
 
     public async Task DeletePromotionAsync(long id)
@@ -203,7 +205,6 @@ public class PromotionService(AppDbContext db) : IPromotionService
                 && (c.PromoCode.MaxUsages == null || c.PromoCode.UsagesCount < c.PromoCode.MaxUsages))
             .ToListAsync();
 
-        // Exclude already-used one-time-per-user codes
         var oneTimeCodeIds = cards
             .Where(c => c.PromoCode.IsOneTimePerUser)
             .Select(c => c.PromoCodeId)
@@ -257,65 +258,72 @@ public class PromotionService(AppDbContext db) : IPromotionService
     // ─── Checkout ──────────────────────────────────────────────────────────────
 
     public async Task<CalculateDiscountResponse> CalculateDiscountAsync(
-        decimal orderTotal, long? userPromoCardId, long? userId, List<long>? productIds = null)
+        decimal orderTotal, long? userPromoCardId, long? userId, List<CartItemForDiscount>? items = null)
     {
         var now = DateTime.UtcNow;
-        productIds ??= [];
+        items ??= [];
+        var productIds = items.Where(i => i.ProductId.HasValue).Select(i => i.ProductId!.Value).Distinct().ToList();
 
         // Resolve category/subcategory IDs for cart products
-        HashSet<long> cartCategoryIds = [];
-        HashSet<long> cartSubcategoryIds = [];
+        Dictionary<long, (long CategoryId, long? SubcategoryId)> productCats = [];
         if (productIds.Count > 0)
         {
             var products = await db.Products
                 .Where(p => productIds.Contains(p.Id))
-                .Select(p => new { p.CategoryId, p.SubcategoryId })
+                .Select(p => new { p.Id, p.CategoryId, p.SubcategoryId })
                 .ToListAsync();
-
-            foreach (var p in products)
-            {
-                cartCategoryIds.Add(p.CategoryId);
-                if (p.SubcategoryId.HasValue) cartSubcategoryIds.Add(p.SubcategoryId.Value);
-            }
+            productCats = products.ToDictionary(p => p.Id, p => (p.CategoryId, p.SubcategoryId));
         }
 
-        // Find best active promotion matching scope
-        var promotions = (await db.Promotions
+        HashSet<long> cartCategoryIds = [];
+        HashSet<long> cartSubcategoryIds = [];
+        foreach (var p in productCats.Values)
+        {
+            cartCategoryIds.Add(p.CategoryId);
+            if (p.SubcategoryId.HasValue) cartSubcategoryIds.Add(p.SubcategoryId.Value);
+        }
+
+        // Load all active promotions with their targets
+        var candidates = await db.Promotions
+            .Include(p => p.TargetCategories)
+            .Include(p => p.VolumeTiers)
+            .Include(p => p.BundleItems)
             .Where(p => p.IsActive
                 && (p.StartsAt == null || p.StartsAt <= now)
-                && (p.EndsAt == null || p.EndsAt >= now)
-                && (p.MinOrderAmount == null || p.MinOrderAmount <= orderTotal))
-            .ToListAsync())
-            .Where(p =>
-                p.Scope == PromotionScope.Global ||
-                (p.Scope == PromotionScope.Category && p.CategoryId.HasValue && cartCategoryIds.Contains(p.CategoryId.Value)) ||
-                (p.Scope == PromotionScope.Subcategory && p.SubcategoryId.HasValue && cartSubcategoryIds.Contains(p.SubcategoryId.Value)) ||
-                (p.Scope == PromotionScope.Product && p.ProductId.HasValue && productIds.Contains(p.ProductId.Value)))
-            .ToList();
+                && (p.EndsAt == null || p.EndsAt >= now))
+            .ToListAsync();
 
+        // Filter one-time-per-user
         if (userId.HasValue)
         {
             var usedIds = (await db.PromotionUsages
                 .Where(u => u.UserId == userId)
                 .Select(u => u.PromotionId)
                 .ToListAsync()).ToHashSet();
-
-            promotions = promotions
-                .Where(p => !p.IsOneTimePerUser || !usedIds.Contains(p.Id))
-                .ToList();
+            candidates = candidates.Where(p => !p.IsOneTimePerUser || !usedIds.Contains(p.Id)).ToList();
         }
         else
         {
-            promotions = promotions.Where(p => !p.IsOneTimePerUser).ToList();
+            candidates = candidates.Where(p => !p.IsOneTimePerUser).ToList();
         }
 
+        // Filter minOrderAmount
+        candidates = candidates.Where(p => p.MinOrderAmount == null || p.MinOrderAmount <= orderTotal).ToList();
+
+        // Calculate discount per promotion, pick best
         Promotion? bestPromotion = null;
         decimal promotionDiscount = 0;
-        foreach (var p in promotions)
+
+        foreach (var p in candidates)
         {
-            var discount = p.DiscountType == DiscountType.Percentage
-                ? Math.Round(orderTotal * p.DiscountValue / 100, 2)
-                : p.DiscountValue;
+            var discount = p.Scope switch
+            {
+                PromotionScope.Global => CalcDiscount(p.DiscountType, p.DiscountValue, orderTotal),
+                PromotionScope.Category => CalcCategoryDiscount(p, items, productCats, cartCategoryIds, cartSubcategoryIds, orderTotal),
+                PromotionScope.Volume => CalcVolumeDiscount(p, items, productCats, cartCategoryIds, cartSubcategoryIds),
+                PromotionScope.Bundle => CalcBundleDiscount(p, items, productCats),
+                _ => 0m
+            };
 
             if (discount > promotionDiscount)
             {
@@ -350,9 +358,7 @@ public class PromotionService(AppDbContext db) : IPromotionService
 
                 if (valid)
                 {
-                    promoCodeDiscount = pc.DiscountType == DiscountType.Percentage
-                        ? Math.Round(baseAmount * pc.DiscountValue / 100, 2)
-                        : pc.DiscountValue;
+                    promoCodeDiscount = CalcDiscount(pc.DiscountType, pc.DiscountValue, baseAmount);
                     promoCodeDiscount = Math.Min(promoCodeDiscount, baseAmount);
                     appliedCode = pc;
                 }
@@ -408,6 +414,136 @@ public class PromotionService(AppDbContext db) : IPromotionService
         await db.SaveChangesAsync();
     }
 
+    // ─── Discount calculators ──────────────────────────────────────────────────
+
+    private static decimal CalcDiscount(DiscountType type, decimal value, decimal baseAmount) =>
+        Math.Round(type == DiscountType.Percentage ? baseAmount * value / 100 : value, 2);
+
+    private static decimal CalcCategoryDiscount(
+        Promotion p, List<CartItemForDiscount> items,
+        Dictionary<long, (long CategoryId, long? SubcategoryId)> productCats,
+        HashSet<long> cartCategoryIds, HashSet<long> cartSubcategoryIds,
+        decimal orderTotal)
+    {
+        var targetCatIds = p.TargetCategories.Where(t => t.CategoryId.HasValue).Select(t => t.CategoryId!.Value).ToHashSet();
+        var targetSubIds = p.TargetCategories.Where(t => t.SubcategoryId.HasValue).Select(t => t.SubcategoryId!.Value).ToHashSet();
+
+        bool applies = targetCatIds.Overlaps(cartCategoryIds) || targetSubIds.Overlaps(cartSubcategoryIds);
+        if (!applies) return 0;
+
+        // Discount applies to matching items only
+        var matchingTotal = items
+            .Where(i => i.ProductId.HasValue && productCats.TryGetValue(i.ProductId.Value, out var cat)
+                && (targetCatIds.Contains(cat.CategoryId) || (cat.SubcategoryId.HasValue && targetSubIds.Contains(cat.SubcategoryId.Value))))
+            .Sum(i => i.Qty * i.UnitPrice);
+
+        return matchingTotal == 0
+            ? CalcDiscount(p.DiscountType, p.DiscountValue, orderTotal)
+            : CalcDiscount(p.DiscountType, p.DiscountValue, matchingTotal);
+    }
+
+    private static decimal CalcVolumeDiscount(
+        Promotion p, List<CartItemForDiscount> items,
+        Dictionary<long, (long CategoryId, long? SubcategoryId)> productCats,
+        HashSet<long> cartCategoryIds, HashSet<long> cartSubcategoryIds)
+    {
+        if (p.VolumeTiers.Count == 0) return 0;
+
+        var targetCatIds = p.TargetCategories.Where(t => t.CategoryId.HasValue).Select(t => t.CategoryId!.Value).ToHashSet();
+        var targetSubIds = p.TargetCategories.Where(t => t.SubcategoryId.HasValue).Select(t => t.SubcategoryId!.Value).ToHashSet();
+
+        bool hasTargets = targetCatIds.Count > 0 || targetSubIds.Count > 0;
+
+        var matchingItems = items.Where(i =>
+        {
+            if (!i.ProductId.HasValue) return !hasTargets;
+            if (!productCats.TryGetValue(i.ProductId.Value, out var cat)) return false;
+            if (!hasTargets) return true;
+            return targetCatIds.Contains(cat.CategoryId) || (cat.SubcategoryId.HasValue && targetSubIds.Contains(cat.SubcategoryId.Value));
+        }).ToList();
+
+        var totalQty = matchingItems.Sum(i => i.Qty);
+        var matchingTotal = matchingItems.Sum(i => i.Qty * i.UnitPrice);
+
+        var bestTier = p.VolumeTiers
+            .Where(t => t.MinQty <= totalQty)
+            .OrderByDescending(t => t.MinQty)
+            .FirstOrDefault();
+
+        return bestTier == null ? 0 : CalcDiscount(bestTier.DiscountType, bestTier.DiscountValue, matchingTotal);
+    }
+
+    private static decimal CalcBundleDiscount(
+        Promotion p, List<CartItemForDiscount> items,
+        Dictionary<long, (long CategoryId, long? SubcategoryId)> productCats)
+    {
+        if (p.BundleItems.Count == 0) return 0;
+
+        // Check each bundle requirement is satisfied
+        foreach (var bundleItem in p.BundleItems)
+        {
+            var qtyInCart = items
+                .Where(i => i.ProductId.HasValue
+                    && productCats.TryGetValue(i.ProductId.Value, out var cat)
+                    && cat.SubcategoryId == bundleItem.SubcategoryId)
+                .Sum(i => i.Qty);
+
+            if (qtyInCart < bundleItem.RequiredQty) return 0;
+        }
+
+        // Bundle satisfied — discount on sum of bundle subcategory items
+        var bundleSubIds = p.BundleItems.Select(b => b.SubcategoryId).ToHashSet();
+        var bundleTotal = items
+            .Where(i => i.ProductId.HasValue
+                && productCats.TryGetValue(i.ProductId.Value, out var cat)
+                && cat.SubcategoryId.HasValue
+                && bundleSubIds.Contains(cat.SubcategoryId.Value))
+            .Sum(i => i.Qty * i.UnitPrice);
+
+        return CalcDiscount(p.DiscountType, p.DiscountValue, bundleTotal);
+    }
+
+    // ─── Helpers ───────────────────────────────────────────────────────────────
+
+    private async Task SaveTargets(long promotionId, SavePromotionRequest request)
+    {
+        foreach (var catId in request.TargetCategoryIds)
+            db.PromotionTargetCategories.Add(new PromotionTargetCategory { PromotionId = promotionId, CategoryId = catId });
+
+        foreach (var subId in request.TargetSubcategoryIds)
+            db.PromotionTargetCategories.Add(new PromotionTargetCategory { PromotionId = promotionId, SubcategoryId = subId });
+
+        foreach (var tier in request.VolumeTiers)
+            db.PromotionVolumeTiers.Add(new PromotionVolumeTier
+            {
+                PromotionId = promotionId,
+                MinQty = tier.MinQty,
+                DiscountType = ParseDiscountType(tier.DiscountType),
+                DiscountValue = tier.DiscountValue
+            });
+
+        foreach (var bi in request.BundleItems)
+            db.PromotionBundleItems.Add(new PromotionBundleItem
+            {
+                PromotionId = promotionId,
+                SubcategoryId = bi.SubcategoryId,
+                RequiredQty = bi.RequiredQty
+            });
+
+        await Task.CompletedTask;
+    }
+
+    private async Task<AdminPromotionResponse> ReloadPromotion(long id)
+    {
+        var entity = await db.Promotions
+            .Include(p => p.TargetCategories).ThenInclude(t => t.Category)
+            .Include(p => p.TargetCategories).ThenInclude(t => t.Subcategory)
+            .Include(p => p.VolumeTiers)
+            .Include(p => p.BundleItems).ThenInclude(b => b.Subcategory)
+            .FirstAsync(p => p.Id == id);
+        return MapAdminPromotion(entity);
+    }
+
     // ─── Mappers ───────────────────────────────────────────────────────────────
 
     private static string ComputeStatus(bool isActive, DateTime? startsAt, DateTime? endsAt)
@@ -427,12 +563,23 @@ public class PromotionService(AppDbContext db) : IPromotionService
         DiscountType = p.DiscountType.ToString(),
         DiscountValue = p.DiscountValue,
         Scope = p.Scope.ToString(),
-        CategoryId = p.CategoryId,
-        CategoryName = p.Category?.Name,
-        SubcategoryId = p.SubcategoryId,
-        SubcategoryName = p.Subcategory?.Name,
-        ProductId = p.ProductId,
-        ProductName = p.Product?.Name,
+        Targets = p.TargetCategories.Select(t => new PromotionTargetDto
+        {
+            CategoryId = t.CategoryId,
+            CategoryName = t.Category?.Name,
+            SubcategoryId = t.SubcategoryId,
+            SubcategoryName = t.Subcategory?.Name
+        }).ToList(),
+        VolumeTiers = p.VolumeTiers.OrderBy(t => t.MinQty).Select(t => new VolumeTierDto
+        {
+            Id = t.Id, MinQty = t.MinQty,
+            DiscountType = t.DiscountType.ToString(), DiscountValue = t.DiscountValue
+        }).ToList(),
+        BundleItems = p.BundleItems.Select(b => new BundleItemDto
+        {
+            Id = b.Id, SubcategoryId = b.SubcategoryId,
+            SubcategoryName = b.Subcategory?.Name ?? string.Empty, RequiredQty = b.RequiredQty
+        }).ToList(),
         MinOrderAmount = p.MinOrderAmount,
         StartsAt = p.StartsAt,
         EndsAt = p.EndsAt,
@@ -494,8 +641,8 @@ public class PromotionService(AppDbContext db) : IPromotionService
     private static PromotionScope ParseScope(string value) => value switch
     {
         "Category" => PromotionScope.Category,
-        "Subcategory" => PromotionScope.Subcategory,
-        "Product" => PromotionScope.Product,
+        "Volume" => PromotionScope.Volume,
+        "Bundle" => PromotionScope.Bundle,
         _ => PromotionScope.Global
     };
 }

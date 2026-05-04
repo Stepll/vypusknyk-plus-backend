@@ -1,5 +1,31 @@
 namespace VypusknykPlus.Application.DTOs.Promotions;
 
+// ─── Shared sub-DTOs ───────────────────────────────────────────────────────────
+
+public class PromotionTargetDto
+{
+    public long? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
+    public long? SubcategoryId { get; set; }
+    public string? SubcategoryName { get; set; }
+}
+
+public class VolumeTierDto
+{
+    public long Id { get; set; }
+    public int MinQty { get; set; }
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+}
+
+public class BundleItemDto
+{
+    public long Id { get; set; }
+    public long SubcategoryId { get; set; }
+    public string SubcategoryName { get; set; } = string.Empty;
+    public int RequiredQty { get; set; }
+}
+
 // ─── Admin responses ───────────────────────────────────────────────────────────
 
 public class AdminPromotionResponse
@@ -10,12 +36,9 @@ public class AdminPromotionResponse
     public string DiscountType { get; set; } = string.Empty;
     public decimal DiscountValue { get; set; }
     public string Scope { get; set; } = string.Empty;
-    public long? CategoryId { get; set; }
-    public string? CategoryName { get; set; }
-    public long? SubcategoryId { get; set; }
-    public string? SubcategoryName { get; set; }
-    public long? ProductId { get; set; }
-    public string? ProductName { get; set; }
+    public List<PromotionTargetDto> Targets { get; set; } = [];
+    public List<VolumeTierDto> VolumeTiers { get; set; } = [];
+    public List<BundleItemDto> BundleItems { get; set; } = [];
     public decimal? MinOrderAmount { get; set; }
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
@@ -47,6 +70,19 @@ public class AdminPromoCodeResponse
 
 // ─── Admin save requests ───────────────────────────────────────────────────────
 
+public class SaveVolumeTierRequest
+{
+    public int MinQty { get; set; }
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+}
+
+public class SaveBundleItemRequest
+{
+    public long SubcategoryId { get; set; }
+    public int RequiredQty { get; set; }
+}
+
 public class SavePromotionRequest
 {
     public string Name { get; set; } = string.Empty;
@@ -54,9 +90,10 @@ public class SavePromotionRequest
     public string DiscountType { get; set; } = "Percentage";
     public decimal DiscountValue { get; set; }
     public string Scope { get; set; } = "Global";
-    public long? CategoryId { get; set; }
-    public long? SubcategoryId { get; set; }
-    public long? ProductId { get; set; }
+    public List<long> TargetCategoryIds { get; set; } = [];
+    public List<long> TargetSubcategoryIds { get; set; } = [];
+    public List<SaveVolumeTierRequest> VolumeTiers { get; set; } = [];
+    public List<SaveBundleItemRequest> BundleItems { get; set; } = [];
     public decimal? MinOrderAmount { get; set; }
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
@@ -115,11 +152,18 @@ public class ActivatePromoCodeRequest
     public string Code { get; set; } = string.Empty;
 }
 
+public class CartItemForDiscount
+{
+    public long? ProductId { get; set; }
+    public int Qty { get; set; }
+    public decimal UnitPrice { get; set; }
+}
+
 public class CalculateDiscountRequest
 {
     public decimal OrderTotal { get; set; }
     public long? UserPromoCardId { get; set; }
-    public List<long> ProductIds { get; set; } = [];
+    public List<CartItemForDiscount> Items { get; set; } = [];
 }
 
 public class CalculateDiscountResponse

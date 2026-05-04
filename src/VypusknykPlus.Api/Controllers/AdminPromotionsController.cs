@@ -14,6 +14,10 @@ public class AdminPromotionsController(IPromotionService promotions) : Controlle
     public async Task<ActionResult<List<AdminPromotionResponse>>> GetAll() =>
         Ok(await promotions.GetAdminPromotionsAsync());
 
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<AdminPromotionResponse>> GetById(long id) =>
+        Ok(await promotions.GetAdminPromotionAsync(id));
+
     [HttpPost]
     public async Task<ActionResult<AdminPromotionResponse>> Create([FromBody] SavePromotionRequest request) =>
         Ok(await promotions.CreatePromotionAsync(request));
