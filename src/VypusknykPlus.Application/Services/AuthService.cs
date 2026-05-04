@@ -184,6 +184,10 @@ public class AuthService : IAuthService
 
         await _db.SaveChangesAsync();
 
+        var verifiedUserId = verToken.User.Id;
+        _ = _tasks.CheckAndAwardAsync(verifiedUserId, new TaskTrigger { IsEmailVerified = true })
+            .ContinueWith(t => _logger.LogError(t.Exception, "Task check failed after email verification"), TaskContinuationOptions.OnlyOnFaulted);
+
         _logger.LogInformation("Email verified for user {Email}", verToken.User.Email);
     }
 

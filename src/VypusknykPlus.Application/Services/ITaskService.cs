@@ -17,6 +17,7 @@ public class TaskTrigger
 {
     public bool IsRegistration { get; set; }
     public bool IsProfileUpdated { get; set; }
+    public bool IsEmailVerified { get; set; }
     public bool IsOrderPlaced { get; set; }
     public decimal OrderAmount { get; set; }
     public long? OrderCategoryId { get; set; }

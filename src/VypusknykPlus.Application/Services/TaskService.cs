@@ -101,11 +101,17 @@ public class TaskService(AppDbContext db) : ITaskService
                 .ToDictionaryAsync(p => p.TaskId);
         }
 
-        return tasks.Select(t =>
-        {
-            progresses.TryGetValue(t.Id, out var prog);
-            return MapPublic(t, prog);
-        }).ToList();
+        return tasks
+            .Where(t =>
+            {
+                progresses.TryGetValue(t.Id, out var prog);
+                return prog?.CompletedAt == null;
+            })
+            .Select(t =>
+            {
+                progresses.TryGetValue(t.Id, out var prog);
+                return MapPublic(t, prog);
+            }).ToList();
     }
 
     // ─── Task checking ────────────────────────────────────────────────────────
@@ -137,6 +143,7 @@ public class TaskService(AppDbContext db) : ITaskService
                 TaskType.Registration => trigger.IsRegistration,
                 TaskType.FirstOrder => trigger.IsOrderPlaced,
                 TaskType.ProfileComplete => trigger.IsProfileUpdated,
+                TaskType.AccountActivation => trigger.IsEmailVerified,
                 TaskType.OrderAmount => trigger.IsOrderPlaced && trigger.OrderAmount >= task.TargetValue,
                 TaskType.OrdersCount => trigger.IsOrderPlaced,
                 TaskType.TotalSpent => trigger.IsOrderPlaced,
@@ -150,6 +157,7 @@ public class TaskService(AppDbContext db) : ITaskService
                 TaskType.Registration => 1,
                 TaskType.FirstOrder => 1,
                 TaskType.ProfileComplete => await CheckProfileCompleteAsync(userId) ? 1 : 0,
+                TaskType.AccountActivation => 1,
                 TaskType.OrderAmount => trigger.OrderAmount,
                 TaskType.OrdersCount => ordersCount ??= await GetOrdersCountAsync(userId),
                 TaskType.TotalSpent => totalSpent ??= await GetTotalSpentAsync(userId),
@@ -287,6 +295,7 @@ public class TaskService(AppDbContext db) : ITaskService
         "TotalSpent" => TaskType.TotalSpent,
         "OrderAmount" => TaskType.OrderAmount,
         "CategoryOrders" => TaskType.CategoryOrders,
+        "AccountActivation" => TaskType.AccountActivation,
         _ => TaskType.Registration,
     };
 }

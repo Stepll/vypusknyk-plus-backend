@@ -9,6 +9,7 @@ public enum TaskType
     TotalSpent = 4,
     OrderAmount = 5,
     CategoryOrders = 6,
+    AccountActivation = 7,
 }
 
 public class UserTask : BaseEntity
