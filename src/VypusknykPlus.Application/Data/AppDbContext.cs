@@ -66,6 +66,9 @@ public class AppDbContext : DbContext
     public DbSet<PromoCodeUsage> PromoCodeUsages => Set<PromoCodeUsage>();
     public DbSet<PromotionUsage> PromotionUsages => Set<PromotionUsage>();
 
+    public DbSet<UserTask> UserTasks => Set<UserTask>();
+    public DbSet<UserTaskProgress> UserTaskProgresses => Set<UserTaskProgress>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -98,6 +101,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ChatMessage>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Promotion>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<PromoCode>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<UserTask>().HasQueryFilter(e => !e.IsDeleted);
 
         modelBuilder.Entity<NotificationTriggerConfig>().HasKey(c => c.TriggerType);
 

@@ -2,7 +2,7 @@ namespace VypusknykPlus.Application.Entities;
 
 public class PromoCode : BaseEntity
 {
-    public string Code { get; set; } = string.Empty;
+    public string? Code { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string CardColor { get; set; } = "#FF6B9D";
     public string? Description { get; set; }

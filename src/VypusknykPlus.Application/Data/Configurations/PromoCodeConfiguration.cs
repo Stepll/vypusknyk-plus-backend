@@ -9,14 +9,15 @@ public class PromoCodeConfiguration : IEntityTypeConfiguration<PromoCode>
     public void Configure(EntityTypeBuilder<PromoCode> builder)
     {
         builder.HasKey(p => p.Id);
-        builder.Property(p => p.Code).IsRequired().HasMaxLength(50);
+        builder.Property(p => p.Code).HasMaxLength(50);
         builder.Property(p => p.DisplayName).IsRequired().HasMaxLength(200);
         builder.Property(p => p.CardColor).IsRequired().HasMaxLength(20);
         builder.Property(p => p.Description).HasMaxLength(1000);
         builder.Property(p => p.DiscountValue).HasPrecision(10, 2);
         builder.Property(p => p.MinOrderAmount).HasPrecision(10, 2);
 
-        builder.HasIndex(p => p.Code).IsUnique();
+        // Unique only when Code is not null
+        builder.HasIndex(p => p.Code).IsUnique().HasFilter("\"Code\" IS NOT NULL");
         builder.HasIndex(p => p.IsActive);
     }
 }

@@ -15,14 +15,16 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly INotificationService _notifications;
     private readonly IPromotionService _promotions;
+    private readonly ITaskService _tasks;
 
-    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications, IPromotionService promotions)
+    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications, IPromotionService promotions, ITaskService tasks)
     {
         _db = db;
         _email = email;
         _logger = logger;
         _notifications = notifications;
         _promotions = promotions;
+        _tasks = tasks;
     }
 
     public async Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request)
@@ -122,6 +124,16 @@ public class OrderService : IOrderService
 
         _logger.LogInformation("Order {OrderNumber} created for user {UserId}, total {Total}",
             order.OrderNumber, userId, total);
+
+        if (userId.HasValue)
+        {
+            var capturedUserId = userId.Value;
+            _ = _tasks.CheckAndAwardAsync(capturedUserId, new TaskTrigger
+            {
+                IsOrderPlaced = true,
+                OrderAmount = total,
+            }).ContinueWith(t => _logger.LogError(t.Exception, "Task check failed after order"), TaskContinuationOptions.OnlyOnFaulted);
+        }
 
         var notifContext = new Dictionary<string, string>
         {

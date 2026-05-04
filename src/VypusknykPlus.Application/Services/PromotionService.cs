@@ -112,8 +112,8 @@ public class PromotionService(AppDbContext db) : IPromotionService
 
     public async Task<AdminPromoCodeResponse> CreatePromoCodeAsync(SavePromoCodeRequest request)
     {
-        var normalized = request.Code.Trim().ToUpper();
-        if (await db.PromoCodes.IgnoreQueryFilters().AnyAsync(p => p.Code == normalized && !p.IsDeleted))
+        var normalized = string.IsNullOrWhiteSpace(request.Code) ? null : request.Code.Trim().ToUpper();
+        if (normalized != null && await db.PromoCodes.IgnoreQueryFilters().AnyAsync(p => p.Code == normalized && !p.IsDeleted))
             throw new InvalidOperationException($"Промокод '{normalized}' вже існує");
 
         var entity = new PromoCode
@@ -146,8 +146,8 @@ public class PromotionService(AppDbContext db) : IPromotionService
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
             ?? throw new KeyNotFoundException($"PromoCode {id} not found");
 
-        var normalized = request.Code.Trim().ToUpper();
-        if (await db.PromoCodes.IgnoreQueryFilters().AnyAsync(p => p.Code == normalized && p.Id != id && !p.IsDeleted))
+        var normalized = string.IsNullOrWhiteSpace(request.Code) ? null : request.Code.Trim().ToUpper();
+        if (normalized != null && await db.PromoCodes.IgnoreQueryFilters().AnyAsync(p => p.Code == normalized && p.Id != id && !p.IsDeleted))
             throw new InvalidOperationException($"Промокод '{normalized}' вже існує");
 
         entity.Code = normalized;

@@ -51,7 +51,7 @@ public class AdminPromotionResponse
 public class AdminPromoCodeResponse
 {
     public long Id { get; set; }
-    public string Code { get; set; } = string.Empty;
+    public string? Code { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string CardColor { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -103,7 +103,7 @@ public class SavePromotionRequest
 
 public class SavePromoCodeRequest
 {
-    public string Code { get; set; } = string.Empty;
+    public string? Code { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string CardColor { get; set; } = "#FF6B9D";
     public string? Description { get; set; }
