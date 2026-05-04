@@ -227,6 +227,9 @@ public class AuthService : IAuthService
 
         await _db.SaveChangesAsync();
 
+        _ = _tasks.CheckAndAwardAsync(userId, new TaskTrigger { IsProfileUpdated = true })
+            .ContinueWith(t => _logger.LogError(t.Exception, "Task check failed after profile update"), TaskContinuationOptions.OnlyOnFaulted);
+
         return await ToAuthResponse(user);
     }
 
