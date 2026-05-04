@@ -39,6 +39,7 @@ public class AuthServiceTests : IDisposable
             new Mock<IEmailService>().Object,
             new Mock<IOrderService>().Object,
             new Mock<INotificationService>().Object,
+            new Mock<ITaskService>().Object,
             new Mock<IServiceScopeFactory>().Object,
             new Mock<ILogger<AuthService>>().Object
         );
