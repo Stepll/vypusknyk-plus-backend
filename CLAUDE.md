@@ -85,8 +85,29 @@ src/
     │   ├── NotificationTriggerConfig.cs   # TriggerType (PK string), EmailEnabled/Recipients/Subject/Message,
     │   │                                  # TelegramEnabled/UserIds/GroupEnabled/Message,
     │   │                                  # SystemEnabled/AdminIds/Title/Message; Recipients/UserIds/AdminIds = JSON
-    │   └── AdminNotification.cs           # AdminId FK (long), TriggerType, Title, Body, EntityType?, EntityId?,
-    │                                      # IsRead, CreatedAt
+    │   ├── AdminNotification.cs           # AdminId FK (long), TriggerType, Title, Body, EntityType?, EntityId?,
+    │   │                                  # IsRead, CreatedAt
+    │   ├── Promotion.cs                   # Name, Description?, DiscountType, DiscountValue, Scope (Global/Category/Volume/Bundle),
+    │   │                                  # MinOrderAmount?, StartsAt?, EndsAt?, IsActive, IsOneTimePerUser, soft delete
+    │   │                                  # Navigation: TargetCategories[], VolumeTiers[], BundleItems[], Usages[]
+    │   ├── PromotionTargetCategory.cs     # PromotionId FK, CategoryId?, SubcategoryId?
+    │   ├── PromotionVolumeTier.cs         # PromotionId FK, MinQty, DiscountType, DiscountValue
+    │   ├── PromotionBundleItem.cs         # PromotionId FK, SubcategoryId FK, RequiredQty
+    │   ├── PromotionUsage.cs              # OrderId FK, UserId? FK, PromotionId? FK, PromoCodeId? FK,
+    │   │                                  # PromotionDiscount, PromoCodeDiscount
+    │   ├── PromoCode.cs                   # Code (string?, nullable — null для task-only карток),
+    │   │                                  # DisplayName, CardColor, Description?, DiscountType, DiscountValue,
+    │   │                                  # MinOrderAmount?, MaxUsages?, IsOneTimePerUser, StartsAt?, EndsAt?, soft delete
+    │   │                                  # Partial unique index: WHERE "Code" IS NOT NULL
+    │   ├── UserPromoCodeCard.cs           # UserId FK, PromoCodeId FK, ActivatedAt; картка юзера
+    │   ├── UserTask.cs                    # Name, Description?, TaskType (enum 0-7), TargetValue,
+    │   │                                  # TargetCategoryId?, RewardPromoCodeId FK, IsVisibleToGuests,
+    │   │                                  # EndsAt?, IsActive, SortOrder, soft delete
+    │   │                                  # TaskType: Registration=0, FirstOrder=1, ProfileComplete=2,
+    │   │                                  #   OrdersCount=3, TotalSpent=4, OrderAmount=5,
+    │   │                                  #   CategoryOrders=6, AccountActivation=7
+    │   └── UserTaskProgress.cs            # TaskId FK, UserId FK, Progress (decimal), CompletedAt?,
+    │                                      # AwardedCardId? FK → UserPromoCodeCard; unique (TaskId, UserId)
     ├── Migrations/
     │   ├── InitialCreate
     │   ├── AddProductImages
@@ -112,7 +133,10 @@ src/
     │   │                                   # EmailSubject, EmailMessage, TelegramMessage
     │   ├── AddAuditLogs                    # AuditLogs table (AdminId long? NO FK, AdminName, EntityType, EntityId,
     │   │                                   # Action, ChangesJson, CreatedAt); indexes на EntityType+EntityId, AdminId, CreatedAt
-    │   └── AddGoogleIdToUser               # GoogleId (text, nullable) на Users
+    │   ├── AddGoogleIdToUser               # GoogleId (text, nullable) на Users
+    │   ├── RefactorPromotionScopes        # Promotion.Scope: Global/Category/Volume/Bundle + TargetCategories/VolumeTiers/BundleItems
+    │   └── AddUserTasksSystem             # UserTasks + UserTaskProgresses + UserPromoCodeCards;
+    │                                      # PromoCode.Code nullable + partial unique index WHERE Code IS NOT NULL
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
@@ -160,6 +184,11 @@ src/
         │                                  #   (інакше DbContext concurrency error)
         │                                  # RegisterAsync: fire-and-forget SendActivationEmailInBackgroundAsync
         │                                  #   + ClaimGuestOrdersInBackgroundAsync — обидва через IServiceScopeFactory
+        │                                  # RegisterAsync + VerifyEmailAsync + UpdateProfileAsync:
+        │                                  #   fire-and-forget CheckAndAwardAsync для відповідних тригерів
+        │                                  # VerifyEmailAsync: CheckAndAwardAsync(IsEmailVerified=true)
+        │                                  # UpdateProfileAsync: CheckAndAwardAsync(IsProfileUpdated=true)
+        │                                  # ВАЖЛИВО: ProfileComplete task — тригер і при реєстрації, і при оновленні профілю
         │                                  # ВАЖЛИВО: fire-and-forget мусить створювати scope через
         │                                  #   IServiceScopeFactory.CreateAsyncScope() — інакше DbContext concurrency
         ├── IAdminService / AdminService   # + PatchUserInfoAsync, PatchUserVerificationAsync,
@@ -266,6 +295,41 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 |-------|------|------|
 | GET | /api/v1/admin/dashboard/sales-by-category?period= | Продажі за категоріями (week/month/year/all) |
 
+### Акції та Промокоди
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/promotions | Публічний список активних акцій |
+| GET | /api/v1/admin/promotions | Адмін список усіх акцій |
+| GET | /api/v1/admin/promotions/{id} | Деталі акції |
+| POST | /api/v1/admin/promotions | Створити акцію |
+| PUT | /api/v1/admin/promotions/{id} | Оновити |
+| DELETE | /api/v1/admin/promotions/{id} | Soft delete |
+| GET | /api/v1/promotions/my-cards | Картки поточного юзера |
+| POST | /api/v1/promotions/activate | Активувати промокод за кодом |
+| POST | /api/v1/promotions/calculate | Розрахувати знижку (CartItemForDiscount[]) |
+| GET | /api/v1/admin/promo-codes | Список промокодів |
+| POST | /api/v1/admin/promo-codes | Створити промокод (Code nullable) |
+| PUT | /api/v1/admin/promo-codes/{id} | Оновити |
+| DELETE | /api/v1/admin/promo-codes/{id} | Soft delete |
+
+**PromotionScope:** Global=0, Category=1, Volume=2, Bundle=3
+**CalcCategoryDiscount:** знижка тільки на matchingTotal (не на весь orderTotal якщо 0)
+**CalcVolumeDiscount:** рахує qty відповідних items, бере кращий tier
+**CartItemForDiscount:** `{ ProductId?, Qty, UnitPrice }` — передається з checkout, не list<productId>
+
+### Завдання (Tasks)
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/tasks | Публічний список (фільтр видимості + приховує виконані) |
+| GET | /api/v1/admin/tasks | Адмін список |
+| POST | /api/v1/admin/tasks | Створити завдання |
+| PUT | /api/v1/admin/tasks/{id} | Оновити |
+| DELETE | /api/v1/admin/tasks/{id} | Soft delete |
+
+**CheckAndAwardAsync** — fire-and-forget з: реєстрації (IsRegistration+IsProfileUpdated), оновлення профілю (IsProfileUpdated), верифікації email (IsEmailVerified), замовлення (IsOrderPlaced+OrderAmount+OrderCategoryId)
+**GetPublicTasksAsync** — фільтрує виконані (CompletedAt != null) — одноразові завдання зникають після виконання
+**CategoryOrders** — рахує distinct OrderId де OrderItem.ProductCategory == category.Name (string match, OrderItem без ProductId FK)
+
 ### Конструктор — типи друку
 | Метод | Шлях | Опис |
 |-------|------|------|
@@ -310,7 +374,7 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 |-------|------|------|
 | GET | /api/v1/admin/audit-logs | Журнал дій адмінів (?entityTypes[], entityId, adminId, action, from, to, page, pageSize) |
 
-**TrackedTypes (22):** Order, Product, User, Admin, Role, Delivery, Supplier, ProductCategory, ProductSubcategory, StockProduct, DeliveryMethod, PaymentMethod, OrderStatus, NotificationTriggerConfig, + 6 ribbon types + ConstructorIncompatibility + ConstructorForcedText
+**TrackedTypes (25):** Order, Product, User, Admin, Role, Delivery, Supplier, ProductCategory, ProductSubcategory, StockProduct, DeliveryMethod, PaymentMethod, OrderStatus, NotificationTriggerConfig, + 6 ribbon types + ConstructorIncompatibility + ConstructorForcedText + Promotion + PromoCode + UserTask
 **Excluded fields:** PasswordHash, IsDeleted, CreatedAt, UpdatedAt
 **adminId=null** → система; **adminId=0** → Super Admin (немає рядка в Admins)
 

@@ -22,6 +22,7 @@ public class AuditInterceptor : SaveChangesInterceptor
         typeof(RibbonColor), typeof(RibbonMaterial), typeof(RibbonPrintColor),
         typeof(RibbonFont), typeof(RibbonPrintType), typeof(RibbonEmblem),
         typeof(ConstructorIncompatibility), typeof(ConstructorForcedText),
+        typeof(Promotion), typeof(PromoCode), typeof(UserTask),
     ];
 
     private static readonly HashSet<string> ExcludedFields =
