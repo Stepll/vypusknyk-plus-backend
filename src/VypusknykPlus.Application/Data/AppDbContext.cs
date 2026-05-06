@@ -39,6 +39,9 @@ public class AppDbContext : DbContext
     public DbSet<InfoPage> InfoPages => Set<InfoPage>();
     public DbSet<BadgeSize> BadgeSizes => Set<BadgeSize>();
     public DbSet<BadgeImage> BadgeImages => Set<BadgeImage>();
+    public DbSet<BadgeTextColor> BadgeTextColors => Set<BadgeTextColor>();
+    public DbSet<BadgeFont> BadgeFonts => Set<BadgeFont>();
+    public DbSet<BadgeTextSize> BadgeTextSizes => Set<BadgeTextSize>();
 
     public DbSet<RibbonColor> RibbonColors => Set<RibbonColor>();
     public DbSet<RibbonMaterial> RibbonMaterials => Set<RibbonMaterial>();
@@ -94,6 +97,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PaymentMethod>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<BadgeSize>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<BadgeImage>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<BadgeTextColor>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<BadgeFont>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<BadgeTextSize>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonColor>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonMaterial>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonPrintColor>().HasQueryFilter(e => !e.IsDeleted);
