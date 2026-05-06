@@ -37,6 +37,8 @@ public class AppDbContext : DbContext
     public DbSet<DeliveryMethod> DeliveryMethods => Set<DeliveryMethod>();
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
     public DbSet<InfoPage> InfoPages => Set<InfoPage>();
+    public DbSet<BadgeSize> BadgeSizes => Set<BadgeSize>();
+
     public DbSet<RibbonColor> RibbonColors => Set<RibbonColor>();
     public DbSet<RibbonMaterial> RibbonMaterials => Set<RibbonMaterial>();
     public DbSet<RibbonPrintColor> RibbonPrintColors => Set<RibbonPrintColor>();
@@ -89,6 +91,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderStatus>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<DeliveryMethod>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<PaymentMethod>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<BadgeSize>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonColor>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonMaterial>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonPrintColor>().HasQueryFilter(e => !e.IsDeleted);
