@@ -38,6 +38,8 @@ src/
 │   │   ├── AdminRibbonPrintTypesController.cs  # CRUD /admin/ribbon-print-types
 │   │   ├── AdminRibbonEmblemsController.cs     # CRUD /admin/ribbon-emblems + POST svg/left, POST svg/right
 │   │   ├── AdminConstructorRulesController.cs  # CRUD /admin/constructor-rules/incompatibilities + /forced-texts
+│   │   ├── BadgeDesignsController.cs           # [Authorize] /api/v1/badge-designs — user CRUD
+│   │   ├── AdminBadgeDesignsController.cs      # [Authorize(Roles="Admin")] /api/v1/admin/badge-designs — list, get, delete, GET by-user/{userId}
 │   │   ├── RibbonPrintTypesController.cs       # Public GET /api/v1/ribbon-print-types
 │   │   ├── RibbonEmblemsController.cs          # Public GET /api/v1/ribbon-emblems
 │   │   └── ConstructorRulesController.cs       # Public GET /api/v1/constructor/rules
@@ -67,6 +69,7 @@ src/
     │   ├── Order.cs
     │   ├── OrderItem.cs           # NamesData (JSONB), RibbonCustomization (JSONB)
     │   ├── SavedDesign.cs
+    │   ├── SavedBadgeDesign.cs     # DesignName, SavedAt, StateJson (TEXT), UserId FK → User
     │   ├── CartItem.cs
     │   ├── StockCategory.cs       # Id, Name, Order
     │   ├── StockSubcategory.cs    # Id, CategoryId, Name, Order
@@ -135,8 +138,9 @@ src/
     │   │                                   # Action, ChangesJson, CreatedAt); indexes на EntityType+EntityId, AdminId, CreatedAt
     │   ├── AddGoogleIdToUser               # GoogleId (text, nullable) на Users
     │   ├── RefactorPromotionScopes        # Promotion.Scope: Global/Category/Volume/Bundle + TargetCategories/VolumeTiers/BundleItems
-    │   └── AddUserTasksSystem             # UserTasks + UserTaskProgresses + UserPromoCodeCards;
-    │                                      # PromoCode.Code nullable + partial unique index WHERE Code IS NOT NULL
+    │   ├── AddUserTasksSystem             # UserTasks + UserTaskProgresses + UserPromoCodeCards;
+    │   │                                  # PromoCode.Code nullable + partial unique index WHERE Code IS NOT NULL
+    │   └── AddSavedBadgeDesignsTable      # SavedBadgeDesigns (DesignName, SavedAt, StateJson TEXT, UserId FK), global query filter (!IsDeleted)
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
     │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
@@ -218,6 +222,11 @@ src/
         │   # MarkReadAsync, MarkAllReadAsync, GetUnreadCountAsync
         ├── INotificationPushService / SignalRNotificationPushService
         │   # PushToAdminAsync(adminId, dto) → Hub.Clients.Group("admin:{id}").SendAsync("ReceiveAdminNotification")
+        ├── IBadgeDesignService / BadgeDesignService
+        │   # GetUserDesigns(userId), GetDesign(id, userId), CreateDesign, UpdateDesign, DeleteDesign (user-owned)
+        │   # GetAdminDesigns(page, pageSize), GetAdminDesign(id), DeleteAdminDesign(id), GetDesignsByUser(userId)
+        │   # State зберігається як raw JSON string (request.State.GetRawText()); читається через JsonSerializer.Deserialize<JsonElement>
+        │   # Include(d => d.User) для адмін-запитів; [Authorize(Roles="Admin")] для адмін-контролера
         └── IDeliveryService / DeliveryService
             # GetSuppliers/Create/Update/Delete (soft)
             # GetDeliveries, GetDeliveryDetail (ThenInclude Transactions → ReceiveHistory)
@@ -294,6 +303,21 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 | Метод | Шлях | Опис |
 |-------|------|------|
 | GET | /api/v1/admin/dashboard/sales-by-category?period= | Продажі за категоріями (week/month/year/all) |
+
+### Дизайни значків
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/badge-designs | Дизайни поточного юзера |
+| POST | /api/v1/badge-designs | Зберегти дизайн |
+| PUT | /api/v1/badge-designs/{id} | Оновити |
+| DELETE | /api/v1/badge-designs/{id} | Soft delete (тільки свій) |
+| GET | /api/v1/admin/badge-designs | Адмін список (paginated) |
+| GET | /api/v1/admin/badge-designs/{id} | Адмін деталі |
+| DELETE | /api/v1/admin/badge-designs/{id} | Soft delete (адмін) |
+| GET | /api/v1/admin/badge-designs/by-user/{userId} | Дизайни конкретного юзера |
+
+**BadgeDesignResponse:** id, designName, savedAt, state (JsonElement)
+**AdminBadgeDesignResponse:** + userId, userFullName, userEmail?
 
 ### Акції та Промокоди
 | Метод | Шлях | Опис |
