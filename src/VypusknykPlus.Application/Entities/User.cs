@@ -14,6 +14,7 @@ public class User : BaseEntity
 
     public ICollection<Order> Orders { get; set; } = [];
     public ICollection<SavedDesign> SavedDesigns { get; set; } = [];
+    public ICollection<SavedBadgeDesign> SavedBadgeDesigns { get; set; } = [];
     public ICollection<CartItem> CartItems { get; set; } = [];
     public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
 }

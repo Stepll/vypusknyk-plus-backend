@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<OrderStatus> OrderStatuses => Set<OrderStatus>();
     public DbSet<SavedDesign> SavedDesigns => Set<SavedDesign>();
+    public DbSet<SavedBadgeDesign> SavedBadgeDesigns => Set<SavedBadgeDesign>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
@@ -85,6 +86,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Order>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<OrderItem>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<SavedDesign>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<SavedBadgeDesign>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<CartItem>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Product>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Admin>().HasQueryFilter(e => !e.IsDeleted);
