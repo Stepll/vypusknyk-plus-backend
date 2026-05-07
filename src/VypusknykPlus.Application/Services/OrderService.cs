@@ -16,8 +16,9 @@ public class OrderService : IOrderService
     private readonly INotificationService _notifications;
     private readonly IPromotionService _promotions;
     private readonly ITaskService _tasks;
+    private readonly IAppSettingsService _appSettings;
 
-    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications, IPromotionService promotions, ITaskService tasks)
+    public OrderService(AppDbContext db, IEmailService email, ILogger<OrderService> logger, INotificationService notifications, IPromotionService promotions, ITaskService tasks, IAppSettingsService appSettings)
     {
         _db = db;
         _email = email;
@@ -25,6 +26,7 @@ public class OrderService : IOrderService
         _notifications = notifications;
         _promotions = promotions;
         _tasks = tasks;
+        _appSettings = appSettings;
     }
 
     public async Task<OrderResponse> CreateAsync(long? userId, CreateOrderRequest request)
@@ -76,6 +78,10 @@ public class OrderService : IOrderService
 
         var discount = await _promotions.CalculateDiscountAsync(originalTotal, request.UserPromoCardId, userId, cartItems);
         var total = discount.FinalTotal;
+
+        var allSettings = await _appSettings.GetPublicAsync();
+        if (allSettings.TryGetValue("min_order_amount", out var minStr) && decimal.TryParse(minStr, out var minAmount) && total < minAmount)
+            throw new ArgumentException($"Мінімальна сума замовлення — {minAmount:0} грн");
 
         var order = new Order
         {
