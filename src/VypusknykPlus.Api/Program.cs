@@ -94,6 +94,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IDesignService, DesignService>();
 builder.Services.AddScoped<IBadgeDesignService, BadgeDesignService>();
+builder.Services.AddScoped<ICertificateDesignService, CertificateDesignService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();

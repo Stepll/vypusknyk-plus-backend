@@ -44,6 +44,11 @@ public class AppDbContext : DbContext
     public DbSet<BadgeFont> BadgeFonts => Set<BadgeFont>();
     public DbSet<BadgeTextSize> BadgeTextSizes => Set<BadgeTextSize>();
 
+    public DbSet<CertificateTemplate> CertificateTemplates => Set<CertificateTemplate>();
+    public DbSet<CertificatePaperType> CertificatePaperTypes => Set<CertificatePaperType>();
+    public DbSet<CertificateFont> CertificateFonts => Set<CertificateFont>();
+    public DbSet<SavedCertificateDesign> SavedCertificateDesigns => Set<SavedCertificateDesign>();
+
     public DbSet<RibbonColor> RibbonColors => Set<RibbonColor>();
     public DbSet<RibbonMaterial> RibbonMaterials => Set<RibbonMaterial>();
     public DbSet<RibbonPrintColor> RibbonPrintColors => Set<RibbonPrintColor>();
@@ -102,6 +107,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<BadgeTextColor>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<BadgeFont>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<BadgeTextSize>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<CertificateTemplate>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<CertificatePaperType>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<CertificateFont>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<SavedCertificateDesign>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonColor>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonMaterial>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RibbonPrintColor>().HasQueryFilter(e => !e.IsDeleted);
