@@ -67,6 +67,21 @@ public class AdminCertificateTemplatesController : ControllerBase
         return Ok(Map(x));
     }
 
+    [HttpPut("{id:long}/layout")]
+    public async Task<IActionResult> SaveLayout(long id, SaveCertificateTemplateLayoutRequest req)
+    {
+        var x = await _db.CertificateTemplates.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
+        if (x is null) return NotFound();
+        x.NativeOrientation = req.NativeOrientation;
+        x.HasSecondSigner = req.HasSecondSigner;
+        x.HasAdditionalText = req.HasAdditionalText;
+        x.LayoutJson = req.LayoutJson;
+        x.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(Map(x));
+    }
+
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id)
     {
@@ -118,5 +133,7 @@ public class AdminCertificateTemplatesController : ControllerBase
         Id = x.Id, Name = x.Name, Slug = x.Slug,
         ImageUrl = _imageService.GetPublicUrl(x.ImageKey),
         PriceModifier = x.PriceModifier, IsActive = x.IsActive, SortOrder = x.SortOrder,
+        NativeOrientation = x.NativeOrientation, HasSecondSigner = x.HasSecondSigner,
+        HasAdditionalText = x.HasAdditionalText, LayoutJson = x.LayoutJson,
     };
 }

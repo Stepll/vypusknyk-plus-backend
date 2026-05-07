@@ -9,6 +9,18 @@ public class CertificateTemplateResponse
     public decimal PriceModifier { get; set; }
     public bool IsActive { get; set; }
     public int SortOrder { get; set; }
+    public string NativeOrientation { get; set; } = "portrait";
+    public bool HasSecondSigner { get; set; }
+    public bool HasAdditionalText { get; set; }
+    public string? LayoutJson { get; set; }
+}
+
+public class SaveCertificateTemplateLayoutRequest
+{
+    public string NativeOrientation { get; set; } = "portrait";
+    public bool HasSecondSigner { get; set; }
+    public bool HasAdditionalText { get; set; }
+    public string? LayoutJson { get; set; }
 }
 
 public class SaveCertificateTemplateRequest

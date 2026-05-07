@@ -8,4 +8,8 @@ public class CertificateTemplate : BaseEntity
     public decimal PriceModifier { get; set; } = 0;
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; } = 0;
+    public string NativeOrientation { get; set; } = "portrait";
+    public bool HasSecondSigner { get; set; } = false;
+    public bool HasAdditionalText { get; set; } = false;
+    public string? LayoutJson { get; set; }
 }

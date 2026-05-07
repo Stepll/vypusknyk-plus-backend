@@ -29,13 +29,11 @@ public class CertificateTemplatesController : ControllerBase
 
         return Ok(items.Select(x => new CertificateTemplateResponse
         {
-            Id = x.Id,
-            Name = x.Name,
-            Slug = x.Slug,
+            Id = x.Id, Name = x.Name, Slug = x.Slug,
             ImageUrl = _imageService.GetPublicUrl(x.ImageKey),
-            PriceModifier = x.PriceModifier,
-            IsActive = x.IsActive,
-            SortOrder = x.SortOrder,
+            PriceModifier = x.PriceModifier, IsActive = x.IsActive, SortOrder = x.SortOrder,
+            NativeOrientation = x.NativeOrientation, HasSecondSigner = x.HasSecondSigner,
+            HasAdditionalText = x.HasAdditionalText, LayoutJson = x.LayoutJson,
         }));
     }
 }
