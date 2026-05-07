@@ -111,6 +111,7 @@ builder.Services.AddScoped<IPageContentService, PageContentService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 
 // --- SignalR ---
 builder.Services.AddSignalR();
@@ -216,6 +217,7 @@ using (var scope = app.Services.CreateScope())
         startupLogger.LogInformation("Migrations applied successfully");
         await InfoPageSeeder.SeedAsync(db);
         await PageContentSeeder.SeedAsync(db);
+        await AppSettingSeeder.SeedAsync(db);
         startupLogger.LogInformation("Info page seed completed");
 
         startupLogger.LogInformation("Ensuring MinIO bucket exists...");

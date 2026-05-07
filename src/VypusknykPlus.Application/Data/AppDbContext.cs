@@ -81,6 +81,8 @@ public class AppDbContext : DbContext
     public DbSet<UserTask> UserTasks => Set<UserTask>();
     public DbSet<UserTaskProgress> UserTaskProgresses => Set<UserTaskProgress>();
 
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -126,6 +128,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserTask>().HasQueryFilter(e => !e.IsDeleted);
 
         modelBuilder.Entity<NotificationTriggerConfig>().HasKey(c => c.TriggerType);
+        modelBuilder.Entity<AppSetting>().HasKey(s => s.Key);
 
         modelBuilder.Entity<AdminNotification>()
             .HasOne(n => n.Admin)
