@@ -2,23 +2,23 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VypusknykPlus.Application.Data;
 using VypusknykPlus.Application.DTOs.Admin;
+using VypusknykPlus.Application.Services;
 
 namespace VypusknykPlus.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/payment-methods")]
-public class PaymentMethodsController : ControllerBase
+public class PaymentMethodsController(AppDbContext db, IAppSettingsService appSettings) : ControllerBase
 {
-    private readonly AppDbContext _db;
-
-    public PaymentMethodsController(AppDbContext db) => _db = db;
-
     [HttpGet]
     public async Task<ActionResult<List<PaymentMethodResponse>>> GetActive()
     {
-        var methods = await _db.PaymentMethods
+        var settings = await appSettings.GetPublicAsync();
+        var onlinePaymentEnabled = !settings.TryGetValue("online_payment_enabled", out var v) || v == "true";
+
+        var methods = await db.PaymentMethods
             .AsNoTracking()
-            .Where(m => m.IsEnabled)
+            .Where(m => m.IsEnabled && (onlinePaymentEnabled || m.Slug != "online"))
             .OrderBy(m => m.Id)
             .ToListAsync();
 

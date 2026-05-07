@@ -234,6 +234,7 @@ using (var scope = app.Services.CreateScope())
 // --- Middleware pipeline ---
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<MaintenanceMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
