@@ -47,8 +47,11 @@ src/
 │   │   └── CurrentAdminProvider.cs  # ICurrentAdminProvider impl — читає adminId/adminName з IHttpContextAccessor claims
 │   │                                 # Super Admin: sub=0, name з env; DB admin: sub=adminId, name=FullName
 │   ├── Middleware/
-│   │   └── ExceptionHandlingMiddleware.cs  # ArgumentException→400, KeyNotFound→404, else→500
+│   │   ├── ExceptionHandlingMiddleware.cs  # ArgumentException→400, KeyNotFound→404, else→500
+│   │   └── MaintenanceMiddleware.cs        # Якщо maintenance_mode=true → 503 + JSON для не-адмін шляхів
+│   │                                        # Пропускає: /api/v1/admin/*, /api/v1/settings, /hubs/*, /healthz
 │   └── Program.cs  # AddHttpContextAccessor, AddScoped<ICurrentAdminProvider>, AddScoped<AuditInterceptor>
+│                    # + AddScoped<IAppSettingsService, AppSettingsService> + AppSettingSeeder + MaintenanceMiddleware
 │                    # AddDbContext factory pattern: (sp, options) => options.UseNpgsql(...).AddInterceptors(sp.GetRequiredService<AuditInterceptor>())
 │
 └── VypusknykPlus.Application/
@@ -109,8 +112,11 @@ src/
     │   │                                  # TaskType: Registration=0, FirstOrder=1, ProfileComplete=2,
     │   │                                  #   OrdersCount=3, TotalSpent=4, OrderAmount=5,
     │   │                                  #   CategoryOrders=6, AccountActivation=7
-    │   └── UserTaskProgress.cs            # TaskId FK, UserId FK, Progress (decimal), CompletedAt?,
-    │                                      # AwardedCardId? FK → UserPromoCodeCard; unique (TaskId, UserId)
+    │   ├── UserTaskProgress.cs            # TaskId FK, UserId FK, Progress (decimal), CompletedAt?,
+    │   │                                  # AwardedCardId? FK → UserPromoCodeCard; unique (TaskId, UserId)
+    │   └── AppSetting.cs                  # Key (string PK), Value (string), Group (string), Label (string), Type (string)
+    │                                      # Type: 'boolean' | 'number' | 'string'
+    │                                      # AppSettingSeeder — 24 дефолтних налаштувань (orders/store/ribbon/badge/certificate/contacts)
     ├── Migrations/
     │   ├── InitialCreate
     │   ├── AddProductImages
@@ -140,10 +146,14 @@ src/
     │   ├── RefactorPromotionScopes        # Promotion.Scope: Global/Category/Volume/Bundle + TargetCategories/VolumeTiers/BundleItems
     │   ├── AddUserTasksSystem             # UserTasks + UserTaskProgresses + UserPromoCodeCards;
     │   │                                  # PromoCode.Code nullable + partial unique index WHERE Code IS NOT NULL
-    │   └── AddSavedBadgeDesignsTable      # SavedBadgeDesigns (DesignName, SavedAt, StateJson TEXT, UserId FK), global query filter (!IsDeleted)
+    │   ├── AddSavedBadgeDesignsTable      # SavedBadgeDesigns (DesignName, SavedAt, StateJson TEXT, UserId FK), global query filter (!IsDeleted)
+    │   └── AddAppSettings               # AppSettings (Key TEXT PK, Value TEXT, Group TEXT, Label TEXT, Type TEXT)
     ├── Controllers/
     │   ├── AdminProductCategoriesController.cs  # [Route("api/v1/admin/product-categories")] CRUD + subcategories
-    │   └── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
+    │   ├── ProductCategoriesController.cs       # Public GET /api/v1/product-categories
+    │   └── AppSettingsController.cs             # GET /api/v1/settings (public → Dictionary<string,string>)
+    │                                             # GET /api/v1/admin/settings (admin → AppSettingResponse[])
+    │                                             # PUT /api/v1/admin/settings (bulk update UpdateAppSettingRequest[])
     ├── Data/
     │   ├── AppDbContext.cs        # Global query filters (!IsDeleted) на: User, Order, OrderItem,
     │   │                          # SavedDesign, CartItem, Product, Admin, Supplier, Delivery
@@ -173,6 +183,16 @@ src/
     │   └── DashboardChartResponse.cs # (розширено) SalesByCategoryResponse, SalesCategoryEntry,
     │                                  # SalesSubcategoryEntry, SalesProductEntry
     └── Services/
+        ├── IAppSettingsService / AppSettingsService
+        │   # GetPublicAsync() → Dictionary<string,string> (всі налаштування для публічного API)
+        │   # GetAllAsync() → AppSettingResponse[] (для адмін-панелі, з group/label/type)
+        │   # UpdateManyAsync(requests[]) → bulk upsert
+        │   # Налаштування: min_order_amount, free_delivery_threshold, production_days,
+        │   #   catalog_enabled, constructor_enabled, online_payment_enabled, maintenance_mode, maintenance_text,
+        │   #   ribbon_max_text_length, ribbon_max_school_length, badge_max_top/bottom_text_length,
+        │   #   certificate_max_body_length, peak_season_mode, peak_season_banner_text,
+        │   #   contact_phone, contact_email, contact_viber, contact_telegram, contact_address,
+        │   #   facebook_url, instagram_url, tiktok_url
         ├── IAuditLogService / AuditLogService
         │   # GetLogsAsync(entityTypes[]?, entityId?, adminId?, action?, from?, to?, page, pageSize)
         │   # entityTypes — масив для multi-filter (використовує .Contains)
@@ -340,6 +360,17 @@ JWT з роллю `"Admin"` + custom claims: `roleId`, `roleName`, `roleColor`, 
 **CalcCategoryDiscount:** знижка тільки на matchingTotal (не на весь orderTotal якщо 0)
 **CalcVolumeDiscount:** рахує qty відповідних items, бере кращий tier
 **CartItemForDiscount:** `{ ProductId?, Qty, UnitPrice }` — передається з checkout, не list<productId>
+
+### Налаштування магазину
+| Метод | Шлях | Опис |
+|-------|------|------|
+| GET | /api/v1/settings | Публічний — всі налаштування як Dictionary<string,string> |
+| GET | /api/v1/admin/settings | Адмін — з group/label/type |
+| PUT | /api/v1/admin/settings | Bulk update (UpdateAppSettingRequest[]) |
+
+**ProductsController** (primary constructor): перевіряє `catalog_enabled=false` → 403 на публічному GET list.
+**PaymentMethodsController** (primary constructor): фільтрує онлайн-методи якщо `online_payment_enabled=false`.
+**OrderService**: перевіряє `min_order_amount` при `CreateOrderAsync` → `ArgumentException` якщо менше.
 
 ### Завдання (Tasks)
 | Метод | Шлях | Опис |
